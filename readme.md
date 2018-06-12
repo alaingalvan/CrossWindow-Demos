@@ -27,7 +27,7 @@ git clone git@github.com/alaingalvan/CrossWindow-Demos --recurse-submodules
 cd CrossWindow-Demos
 
 # 🛆 Go inside any demo, like for instance the `/demos/hello-triangle/` folder:
-cd demos/hello-triangle/
+cd src/hello-triangle/
 
 # 👯 If you forget to `recurse-submodules` you can always run:
 git submodule update --init

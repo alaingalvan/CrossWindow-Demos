@@ -10,3 +10,6 @@
 [submodule "external/glslang"]
 	path = external/glslang
 	url = https://github.com/KhronosGroup/glslang.git
+[submodule "external/vectormath"]
+	path = external/vectormath
+	url = https://github.com/glampert/vectormath.git
