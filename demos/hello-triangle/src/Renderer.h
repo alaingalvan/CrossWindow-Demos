@@ -23,8 +23,15 @@ protected:
   vk::Device mDevice;
   vk::SwapchainKHR mSwapchain;
   vk::SurfaceKHR mSurface;
+  float mQueuePriority;
   vk::Queue mQueue;
   uint32_t mQueueFamilyIndex;
+  vk::CommandPool mCommandPool;
+  std::vector<vk::CommandBuffer> mCommandBuffers;
+  vk::Semaphore mPresentCompleteSemaphore;
+  vk::Semaphore mRenderCompleteSemaphore;
+  vk::Fence mWaitFence;
+
 #endif
 
 }

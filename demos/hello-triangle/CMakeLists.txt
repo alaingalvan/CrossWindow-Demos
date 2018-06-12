@@ -18,6 +18,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 
+# Options
+set(XGFX_PROTOCOL AUTO CACHE STRING "Which graphics API to use, defaults to AUTO, can be NOOP, VULKAN, OPENGL, DIRECTX12, or METAL.")
+set_property(
+    CACHE
+    XGFX_PROTOCOL PROPERTY
+    STRINGS AUTO NOOP VULKAN OPENGL DIRECTX12 METAL
+)
+
+if(XGFX_PROTOCOL STREQUAL "AUTO")
+set(XGFX_PROTOCOL VULKAN CACHE STRING "Which graphics API to use, defaults to AUTO, can be NOOP, VULKAN, OPENGL, DIRECTX12, or METAL.")
+endif()
+
+# =============================================================
+
 # Core Dependencies
 add_subdirectory(../../external/crosswindow)
 
@@ -28,9 +42,10 @@ target_include_directories(
 
 target_compile_definitions(
   ${PROJECT_NAME} 
-  PRIVATE XGFX_VULKAN=1
+  PRIVATE XGFX_${XGFX_PROTOCOL}=1
 )
 
+if(XGFX_PROTOCOL STREQUAL "VULKAN")
 find_path(VULKAN_INCLUDE_DIR NAMES vulkan/vulkan.h HINTS
     "$ENV{VULKAN_SDK}/include"
     "$ENV{VULKAN_SDK}/Include"
@@ -51,6 +66,7 @@ else()
         "$ENV{VULKAN_SDK}/Bin32"
         "$ENV{VK_SDK_PATH}/Bin32")
 endif()
+endif()
 
 
 # =============================================================
@@ -59,8 +75,8 @@ endif()
 
 file(GLOB_RECURSE FILE_SOURCES RELATIVE
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/${XGFX_PROTOCOL}Renderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/${XGFX_PROTOCOL}Renderer.mm
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
 )
 
@@ -74,7 +90,7 @@ endforeach()
 
 # =============================================================
 
-set_property(TARGET CrossWindow  PROPERTY FOLDER "Dependencies")
+set_property(TARGET CrossWindow PROPERTY FOLDER "Dependencies")
 
 # Finalize Engine Editor
 xwin_add_executable(
@@ -94,3 +110,8 @@ target_include_directories(${PROJECT_NAME} PUBLIC ${VULKAN_INCLUDE_DIR})
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
+
+# =============================================================
+
+# Preprocessor Definitions
+target_compile_definitions(${PROJECT_NAME} PUBLIC XGFX_${XGFX_PROTOCOL}=1)
