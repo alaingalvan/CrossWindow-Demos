@@ -4,3 +4,9 @@
 [submodule "external/crosswindow-graphics"]
 	path = external/crosswindow-graphics
 	url = https://github.com/alaingalvan/crosswindow-graphics.git
+[submodule "external/spirv-cross"]
+	path = external/spirv-cross
+	url = https://github.com/KhronosGroup/spirv-cross.git
+[submodule "external/glslang"]
+	path = external/glslang
+	url = https://github.com/KhronosGroup/glslang.git
