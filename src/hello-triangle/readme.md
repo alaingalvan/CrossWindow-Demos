@@ -27,29 +27,31 @@ cmake --build . --config Release
 cd ../../demos/hello-triangle/assets/shaders
 
 # Make build folder
-mkdir ../bin
+mkdir ../../bin
 ```
 
 ### Compile Shaders
 
 Now we can compile our shaders for the example, we'll be placing them where the final executable will be so it can read their files.
 
+Sorry for all the going up/down folders, this is to make sure files go where they're expected:
+
 ```bash
 # 🌋 Compile shaders to SPIR-V binary
-../../../../external/glslang/build/StandAlone/Release/glslangValidator -V triangle.vert -o ../bin/triangle.vert.spv
-../../../../external/glslang/build/StandAlone/Release/glslangValidator -V triangle.frag -o ../bin/triangle.frag.spv
+../../../../external/glslang/build/StandAlone/Release/glslangValidator -V triangle.vert -o ../../build/bin/triangle.vert.spv
+../../../../external/glslang/build/StandAlone/Release/glslangValidator -V triangle.frag -o ../../build/bin/triangle.frag.spv
 
 # ❎ HLSL
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross build/triangle.vert.spv --hlsl --output ../bin/triangle.vert.hlsl
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross build/triangle.frag.spv --hlsl --output ../bin/triangle.frag.hlsl
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.vert.spv --hlsl --output ../../build/bin/triangle.vert.hlsl
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.frag.spv --hlsl --output ../../build/bin/triangle.frag.hlsl
 
 # ⚪ OpenGL ES 3.1
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross build/triangle.vert.spv --version 310 --es --output ../bin/triangle.vert.glsl
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross build/triangle.frag.spv --version 310 --es --output ../bin/triangle.frag.glsl
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.vert.spv --version 310 --es --output ../../build/bin/triangle.vert.glsl
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.frag.spv --version 310 --es --output ../../build/bin/triangle.frag.glsl
 
 # 🤖 Metal
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross build/triangle.vert.spv --msl --output ../bin/triangle.vert.msl
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross build/triangle.frag.spv --msl --output ../bin/triangle.frag.msl
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.vert.spv --msl --output ../../build/bin/triangle.vert.msl
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.frag.spv --msl --output ../../build/bin/triangle.frag.msl
 ```
 
 ### Compile Demo
@@ -58,18 +60,18 @@ Finally we need to build our actual example:
 
 ```bash
 # 🖼️ To build your Visual Studio solution on Windows x64
-mkdir visualstudio
-cd visualstudio
+mkdir build
+cd build
 cmake .. -A x64
 
 # 🍎 To build your XCode project On Mac OS for Mac OS / iOS
-mkdir xcode
-cd xcode
+mkdir build
+cd build
 cmake .. -G Xcode
 
 # 🐧 To build your .make file on Linux
-mkdir make
-cd make
+mkdir build
+cd build
 cmake ..
 
 # 🔨 Build on any platform:
@@ -79,8 +81,8 @@ For WebAssembly you'll need to have [Emscripten](http://kripken.github.io/emscri
 
 ```bash
 # 🌐 For WebAssembly Projects
-mkdir webassembly
-cd webassembly
+mkdir build
+cd build
 cmake .. -DXWIN_OS=WASM -DCMAKE_TOOLCHAIN_FILE="$EMSDK/emscripten/1.38.1/cmake/Modules/Platform/Emscripten.cmake" -DCMAKE_BUILD_TYPE=Release
 
 # Run emconfigure with the normal configure command as an argument.
