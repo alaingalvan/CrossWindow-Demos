@@ -3,6 +3,7 @@
 
 void xmain(int argc, const char** argv)
 {
+    // 🖼️ Create a window
     xwin::EventQueue eventQueue;
     xwin::Window window;
 
@@ -14,14 +15,14 @@ void xmain(int argc, const char** argv)
     windowDesc.height = 720;
     window.create(windowDesc, eventQueue);
 
+    // 📸 Create a renderer
     Renderer renderer(window);
 
     // 🏁 Engine loop
     bool isRunning = true;
     while (isRunning)
     {
-        // Update Visuals
-        renderer.render();
+        bool shouldRender = true; 
 
         // ♻️ Update the event queue
         eventQueue.update();
@@ -34,20 +35,17 @@ void xmain(int argc, const char** argv)
 
             switch (event.type)
             {
-            case xwin::EventType::Paint:
-            {
-
-                break;
-            }
             case xwin::EventType::Resize:
             {
                 const xwin::ResizeData data = event.data.resize;
                 renderer.resize(data.width, data.height);
+                shouldRender = false;
                 break;
             }
             case xwin::EventType::Close:
             {
                 window.close();
+                shouldRender = false;
                 isRunning = false;
                 break;
             }
@@ -60,6 +58,9 @@ void xmain(int argc, const char** argv)
 
             eventQueue.pop();
         }
+
+        // ✨ Update Visuals
+        if (shouldRender) { renderer.render(); }
     }
 
 }

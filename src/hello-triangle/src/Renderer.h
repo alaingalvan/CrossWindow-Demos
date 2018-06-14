@@ -26,15 +26,25 @@ public:
 
   ~Renderer();
 
+  // Initialize your Graphics API
   void initializeAPI(xwin::Window& window);
 
+  // Initialize any resources used n this example
   void initializeResources();
 
+  // Set up commands and hook them up
+  void setupCommands();
+
+  // Render onto the render target
   void render();
 
+  // Resize the window and internal data structures
   void resize(unsigned width, unsigned height);
 
 protected:
+
+    void setupSwapchain(unsigned width, unsigned height);
+
   struct Vertex
     {
       float position[3];
@@ -50,6 +60,7 @@ protected:
 
   uint32_t mIndexBufferData[3] = { 0, 1, 2 };
 
+  float mElapsedTime = 0.0f;
 
 #if defined(XGFX_VULKAN)
   // Initialization
@@ -69,6 +80,9 @@ protected:
   vk::Viewport mViewport;
   
   // Resources
+  vk::Image mDepthImage;
+  vk::DeviceMemory mDepthImageMemory;
+
   vk::DescriptorPool mDescriptorPool;
   std::vector<vk::DescriptorSetLayout> mDescriptorSetLayouts;
   std::vector<vk::DescriptorSet> mDescriptorSets;
@@ -78,6 +92,7 @@ protected:
   vk::Buffer mVertexBuffer;
   vk::Buffer mIndexBuffer;
   vk::Pipeline mPipeline;
+  vk::PipelineLayout mPipelineLayout;
 
   // Sync
   vk::Semaphore mPresentCompleteSemaphore;
@@ -99,7 +114,7 @@ protected:
       vk::PipelineVertexInputStateCreateInfo inputState;
       vk::VertexInputBindingDescription inputBinding;
       std::vector<vk::VertexInputAttributeDescription> inputAttributes;
-  } vertices;
+  } mVertices;
 
   // Index buffer
   struct
@@ -107,14 +122,32 @@ protected:
       vk::DeviceMemory memory;
       vk::Buffer buffer;
       uint32_t count;
-} indices;
+} mIndices;
 
   // Uniform block object
   struct {
       vk::DeviceMemory memory;
       vk::Buffer buffer;
       vk::DescriptorBufferInfo descriptor;
-  }  uniformDataVS;
+  }  mUniformDataVS;
+
+  // For simplicity we use the same uniform block layout as in the shader:
+  //
+  //	layout(set = 0, binding = 0) uniform UBO
+  //	{
+  //		mat4 projectionMatrix;
+  //		mat4 modelMatrix;
+  //		mat4 viewMatrix;
+  //	} ubo;
+  //
+  // This way we can just memcopy the ubo data to the ubo
+  // Note: You should use data types that align with the GPU in order to avoid manual padding (vec4, mat4)
+  struct {
+      Matrix4 projectionMatrix;
+      Matrix4 modelMatrix;
+      Matrix4 viewMatrix;
+} uboVS;
+
 
 #elif defined(XGFX_DIRECTX12)
   using Microsoft::WRL::ComPtr;

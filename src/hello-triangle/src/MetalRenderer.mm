@@ -4,3 +4,8 @@ Renderer::Renderer(xwin::Window& window)
 {
   auto layer = xwin::createMetalLayer(&window);
 }
+
+Renderer::~Renderer()
+{
+  
+}

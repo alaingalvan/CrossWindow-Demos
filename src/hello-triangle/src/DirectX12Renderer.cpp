@@ -102,3 +102,8 @@ Renderer::Renderer(xwin::Window& window)
 	ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
   mSwapchain = xwin::createSwapchain(&window);
 }
+
+Renderer::~Renderer()
+{
+  
+}

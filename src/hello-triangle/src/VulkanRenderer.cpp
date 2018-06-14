@@ -68,6 +68,8 @@ Renderer::Renderer(xwin::Window& window)
 {
     initializeAPI(window);
     initializeResources();
+
+    setupCommands();
 }
 
 Renderer::~Renderer()
@@ -78,6 +80,11 @@ Renderer::~Renderer()
 
 void Renderer::initializeAPI(xwin::Window& window)
 {
+    /**
+     * Initialize the Vulkan API by creating its various API entry points:
+     */
+
+     // Instance
     vk::ApplicationInfo appInfo(
         "Hello Triangle",
         0,
@@ -86,7 +93,12 @@ void Renderer::initializeAPI(xwin::Window& window)
         VK_API_VERSION_1_0
     );
 
-    std::vector<const char*> layers = {};
+    std::vector<const char*> layers =
+    {
+#ifdef _DEBUG
+        "VK_LAYER_LUNARG_standard_validation"
+#endif
+    };
 
     std::vector<const char*> extensions =
     {
@@ -124,12 +136,21 @@ void Renderer::initializeAPI(xwin::Window& window)
     );
 
     mInstance = vk::createInstance(info);
-    mSurface = xgfx::getSurface(&window, mInstance);
 
+    // Physical Device
     std::vector<vk::PhysicalDevice> physicalDevices = mInstance.enumeratePhysicalDevices();
     mPhysicalDevice = physicalDevices[0];
 
+    // Queue Family
     mQueueFamilyIndex = getQueueIndex(mPhysicalDevice, vk::QueueFlagBits::eGraphics);
+
+    // Surface
+    mSurface = xgfx::getSurface(&window, mInstance);
+    if (!mPhysicalDevice.getSurfaceSupportKHR(mQueueFamilyIndex, mSurface))
+    {
+        // Failed to create surface
+    }
+
 
     // Queue Creation
     vk::DeviceQueueCreateInfo qcinfo;
@@ -157,66 +178,12 @@ void Renderer::initializeAPI(xwin::Window& window)
             mQueueFamilyIndex)
     );
 
-    //Swapchain
-    const xwin::WindowDesc wdesc = window.getDesc();
-    resize(wdesc.width, wdesc.height);
-    std::vector<vk::Image> swapchainImages = mDevice.getSwapchainImagesKHR(mSwapchain);
+    /**
+    * Create RenderPass used by primary frame buffer
+    * This describes the expected attachments that will be used when rendering:
+    */
 
-    // Command Buffers
-    mCommandBuffers = mDevice.allocateCommandBuffers(
-        vk::CommandBufferAllocateInfo(
-            mCommandPool,
-            vk::CommandBufferLevel::ePrimary,
-            swapchainImages.size()));
-
-    //Descriptor Pool
-    std::vector<vk::DescriptorPoolSize> descriptorPoolSizes =
-    {
-        vk::DescriptorPoolSize(
-            vk::DescriptorType::eUniformBuffer,
-            1
-        )
-    };
-
-    mDescriptorPool = mDevice.createDescriptorPool(
-        vk::DescriptorPoolCreateInfo(
-            vk::DescriptorPoolCreateFlags(),
-            1,
-            descriptorPoolSizes.size(),
-            descriptorPoolSizes.data()
-        )
-    );
-
-    //Descriptor Set Layout
-    // Binding 0: Uniform buffer (Vertex shader)
-    std::vector<vk::DescriptorSetLayoutBinding> descriptorSetLayoutBindings =
-    {
-        vk::DescriptorSetLayoutBinding(
-            0,
-            vk::DescriptorType::eUniformBuffer,
-            1,
-            vk::ShaderStageFlagBits::eVertex,
-            nullptr
-        )
-    };
-
-    mDescriptorSetLayouts = {
-        mDevice.createDescriptorSetLayout(
-            vk::DescriptorSetLayoutCreateInfo(
-                vk::DescriptorSetLayoutCreateFlags(),
-                descriptorSetLayoutBindings.size(),
-                descriptorSetLayoutBindings.data()
-            )
-        )
-    };
-
-    mDescriptorSets = mDevice.allocateDescriptorSets(
-        vk::DescriptorSetAllocateInfo(
-            mDescriptorPool,
-            mDescriptorSetLayouts.size(),
-            mDescriptorSetLayouts.data()
-        )
-    );
+    // Get swapchain and depth buffer formats:
 
     // ColorFormats
     // Check to see if we can display rgb colors.
@@ -254,100 +221,6 @@ void Renderer::initializeAPI(xwin::Window& window)
             surfaceDepthFormat = format;
             break;
         }
-    }
-
-    // Create Depth Image Data
-    vk::Image depthImage = mDevice.createImage(
-        vk::ImageCreateInfo(
-            vk::ImageCreateFlags(),
-            vk::ImageType::e2D,
-            surfaceDepthFormat,
-            vk::Extent3D(mSurfaceSize.width, mSurfaceSize.height, 1),
-            1U,
-            1U,
-            vk::SampleCountFlagBits::e1,
-            vk::ImageTiling::eOptimal,
-            vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eTransferSrc,
-            vk::SharingMode::eExclusive,
-            1,
-            &mQueueFamilyIndex,
-            vk::ImageLayout::eUndefined
-        )
-    );
-
-    vk::MemoryRequirements depthMemoryReq = mDevice.getImageMemoryRequirements(depthImage);
-
-    // Search through GPU memory properies to see if this can be device local.
-
-    vk::DeviceMemory depthMemory = mDevice.allocateMemory(
-        vk::MemoryAllocateInfo(
-            depthMemoryReq.size,
-            getMemoryTypeIndex(mPhysicalDevice, depthMemoryReq.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal)
-        )
-    );
-
-    mDevice.bindImageMemory(
-        depthImage,
-        depthMemory,
-        0
-    );
-
-    vk::ImageView depthImageView = mDevice.createImageView(
-        vk::ImageViewCreateInfo(
-            vk::ImageViewCreateFlags(),
-            depthImage,
-            vk::ImageViewType::e2D,
-            surfaceDepthFormat,
-            vk::ComponentMapping(),
-            vk::ImageSubresourceRange(
-                vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil,
-                0,
-                1,
-                0,
-                1
-            )
-        )
-    );
-
-    mSwapchainBuffers.resize(swapchainImages.size());
-
-    for (size_t i = 0; i < swapchainImages.size(); i++)
-    {
-        mSwapchainBuffers[i].image = swapchainImages[i];
-
-        // Color
-        mSwapchainBuffers[i].views[0] =
-            mDevice.createImageView(
-                vk::ImageViewCreateInfo(
-                    vk::ImageViewCreateFlags(),
-                    swapchainImages[i],
-                    vk::ImageViewType::e2D,
-                    surfaceColorFormat,
-                    vk::ComponentMapping(),
-                    vk::ImageSubresourceRange(
-                        vk::ImageAspectFlagBits::eColor,
-                        0,
-                        1,
-                        0,
-                        1
-                    )
-                )
-            );
-
-        // Depth
-        mSwapchainBuffers[i].views[1] = depthImageView;
-
-        mSwapchainBuffers[i].frameBuffer = mDevice.createFramebuffer(
-            vk::FramebufferCreateInfo(
-                vk::FramebufferCreateFlags(),
-                mRenderPass,
-                mSwapchainBuffers[i].views.size(),
-                mSwapchainBuffers[i].views.data(),
-                mSurfaceSize.width,
-                mSurfaceSize.height,
-                1
-            )
-        );
     }
 
     std::vector<vk::AttachmentDescription> attachmentDescriptions =
@@ -435,7 +308,22 @@ void Renderer::initializeAPI(xwin::Window& window)
         )
     );
 
-    //Synchronization
+    //Swapchain
+    const xwin::WindowDesc wdesc = window.getDesc();
+    setupSwapchain(wdesc.width, wdesc.height);
+    std::vector<vk::Image> swapchainImages = mDevice.getSwapchainImagesKHR(mSwapchain);
+
+    // Command Buffers
+    mCommandBuffers = mDevice.allocateCommandBuffers(
+        vk::CommandBufferAllocateInfo(
+            mCommandPool,
+            vk::CommandBufferLevel::ePrimary,
+            swapchainImages.size())
+    );
+
+    /**
+    * Synchronization
+    */
 
     // Semaphore used to ensures that image presentation is complete before starting to submit again
     mPresentCompleteSemaphore = mDevice.createSemaphore(vk::SemaphoreCreateInfo());
@@ -449,19 +337,64 @@ void Renderer::initializeAPI(xwin::Window& window)
     {
         mWaitFences[i] = mDevice.createFence(vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled));
     }
-
 }
 
 void Renderer::initializeResources()
 {
-    std::vector<vk::ClearValue> clearValues =
+    /**
+    * Create Shader uniform binding data structures:
+    */
+
+    //Descriptor Pool
+    std::vector<vk::DescriptorPoolSize> descriptorPoolSizes =
     {
-        vk::ClearColorValue(
-            std::array<float, 4>{0.2f, 0.2f, 0.2f, 1.0f}),
-        vk::ClearDepthStencilValue(1.0f, 0)
+        vk::DescriptorPoolSize(
+            vk::DescriptorType::eUniformBuffer,
+            1
+        )
     };
 
-    vk::PipelineLayout pipelineLayout = mDevice.createPipelineLayout(
+    mDescriptorPool = mDevice.createDescriptorPool(
+        vk::DescriptorPoolCreateInfo(
+            vk::DescriptorPoolCreateFlags(),
+            1,
+            descriptorPoolSizes.size(),
+            descriptorPoolSizes.data()
+        )
+    );
+
+    //Descriptor Set Layout
+    // Binding 0: Uniform buffer (Vertex shader)
+    std::vector<vk::DescriptorSetLayoutBinding> descriptorSetLayoutBindings =
+    {
+        vk::DescriptorSetLayoutBinding(
+            0,
+            vk::DescriptorType::eUniformBuffer,
+            1,
+            vk::ShaderStageFlagBits::eVertex,
+            nullptr
+        )
+    };
+
+    mDescriptorSetLayouts = {
+        mDevice.createDescriptorSetLayout(
+            vk::DescriptorSetLayoutCreateInfo(
+                vk::DescriptorSetLayoutCreateFlags(),
+                descriptorSetLayoutBindings.size(),
+                descriptorSetLayoutBindings.data()
+            )
+        )
+    };
+
+    mDescriptorSets = mDevice.allocateDescriptorSets(
+        vk::DescriptorSetAllocateInfo(
+            mDescriptorPool,
+            mDescriptorSetLayouts.size(),
+            mDescriptorSetLayouts.data()
+        )
+    );
+
+    mPipelineLayout = mDevice.createPipelineLayout(
         vk::PipelineLayoutCreateInfo(
             vk::PipelineLayoutCreateFlags(),
             mDescriptorSetLayouts.size(),
@@ -470,6 +403,308 @@ void Renderer::initializeResources()
             nullptr
         )
     );
+
+    // Setup vertices data
+    uint32_t vertexBufferSize = static_cast<uint32_t>(3) * sizeof(Vertex);
+
+    // Setup mIndices data
+    mIndices.count = 3;
+    uint32_t indexBufferSize = mIndices.count * sizeof(uint32_t);
+
+    void *data;
+    // Static data like vertex and index buffer should be stored on the device memory 
+    // for optimal (and fastest) access by the GPU
+    //
+    // To achieve this we use so-called "staging buffers" :
+    // - Create a buffer that's visible to the host (and can be mapped)
+    // - Copy the data to this buffer
+    // - Create another buffer that's local on the device (VRAM) with the same size
+    // - Copy the data from the host to the device using a command buffer
+    // - Delete the host visible (staging) buffer
+    // - Use the device local buffers for rendering
+
+    struct StagingBuffer {
+        vk::DeviceMemory memory;
+        vk::Buffer buffer;
+    };
+
+    struct {
+        StagingBuffer vertices;
+        StagingBuffer indices;
+    } stagingBuffers;
+
+    // Vertex buffer
+    stagingBuffers.vertices.buffer = mDevice.createBuffer(
+        vk::BufferCreateInfo(
+            vk::BufferCreateFlags(),
+            vertexBufferSize,
+            vk::BufferUsageFlagBits::eTransferSrc,
+            vk::SharingMode::eExclusive,
+            1,
+            &mQueueFamilyIndex
+        )
+    );
+
+    auto memReqs = mDevice.getBufferMemoryRequirements(stagingBuffers.vertices.buffer);
+
+    // Request a host visible memory type that can be used to copy our data do
+    // Also request it to be coherent, so that writes are visible to the GPU right after unmapping the buffer
+    stagingBuffers.vertices.memory = mDevice.allocateMemory(
+        vk::MemoryAllocateInfo(
+            memReqs.size,
+            getMemoryTypeIndex(mPhysicalDevice, memReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)
+        )
+    );
+
+    // Map and copy
+    data = mDevice.mapMemory(stagingBuffers.vertices.memory, 0, memReqs.size, vk::MemoryMapFlags());
+    memcpy(data, mVertexBufferData, vertexBufferSize);
+    mDevice.unmapMemory(stagingBuffers.vertices.memory);
+    mDevice.bindBufferMemory(stagingBuffers.vertices.buffer, stagingBuffers.vertices.memory, 0);
+
+    // Create a device local buffer to which the (host local) vertex data will be copied and which will be used for rendering
+    mVertices.buffer = mDevice.createBuffer(
+        vk::BufferCreateInfo(
+            vk::BufferCreateFlags(),
+            vertexBufferSize,
+            vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+            vk::SharingMode::eExclusive,
+            1,
+            &mQueueFamilyIndex
+        )
+    );
+
+    memReqs = mDevice.getBufferMemoryRequirements(mVertices.buffer);
+
+    mVertices.memory = mDevice.allocateMemory(
+        vk::MemoryAllocateInfo(
+            memReqs.size,
+            getMemoryTypeIndex(mPhysicalDevice, memReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal)
+        )
+    );
+
+    mDevice.bindBufferMemory(mVertices.buffer, mVertices.memory, 0);
+
+    // Index buffer
+    // Copy index data to a buffer visible to the host (staging buffer)
+    stagingBuffers.indices.buffer = mDevice.createBuffer(
+        vk::BufferCreateInfo(
+            vk::BufferCreateFlags(),
+            indexBufferSize,
+            vk::BufferUsageFlagBits::eTransferSrc,
+            vk::SharingMode::eExclusive,
+            1,
+            &mQueueFamilyIndex
+        )
+    );
+    memReqs = mDevice.getBufferMemoryRequirements(stagingBuffers.indices.buffer);
+    stagingBuffers.indices.memory = mDevice.allocateMemory(
+        vk::MemoryAllocateInfo(
+            memReqs.size,
+            getMemoryTypeIndex(mPhysicalDevice, memReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)
+        )
+    );
+
+    data = mDevice.mapMemory(stagingBuffers.indices.memory, 0, indexBufferSize, vk::MemoryMapFlags());
+    memcpy(data, mIndexBufferData, indexBufferSize);
+    mDevice.unmapMemory(stagingBuffers.indices.memory);
+    mDevice.bindBufferMemory(stagingBuffers.indices.buffer, stagingBuffers.indices.memory, 0);
+
+    // Create destination buffer with device only visibility
+    mIndices.buffer = mDevice.createBuffer(
+        vk::BufferCreateInfo(
+            vk::BufferCreateFlags(),
+            indexBufferSize,
+            vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer,
+            vk::SharingMode::eExclusive,
+            0,
+            nullptr
+        )
+    );
+
+    memReqs = mDevice.getBufferMemoryRequirements(mIndices.buffer);
+    mIndices.memory = mDevice.allocateMemory(
+        vk::MemoryAllocateInfo(
+            memReqs.size,
+            getMemoryTypeIndex(mPhysicalDevice, memReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal
+            )
+        )
+    );
+
+    mDevice.bindBufferMemory(mIndices.buffer, mIndices.memory, 0);
+
+    auto getCommandBuffer = [&](bool begin)
+    {
+        vk::CommandBuffer cmdBuffer = mDevice.allocateCommandBuffers(
+            vk::CommandBufferAllocateInfo(
+                mCommandPool,
+                vk::CommandBufferLevel::ePrimary,
+                1)
+        )[0];
+
+        // If requested, also start the new command buffer
+        if (begin)
+        {
+            cmdBuffer.begin(
+                vk::CommandBufferBeginInfo()
+            );
+        }
+
+        return cmdBuffer;
+    };
+
+    // Buffer copies have to be submitted to a queue, so we need a command buffer for them
+    // Note: Some devices offer a dedicated transfer queue (with only the transfer bit set) that may be faster when doing lots of copies
+    vk::CommandBuffer copyCmd = getCommandBuffer(true);
+
+    // Put buffer region copies into command buffer
+    std::vector<vk::BufferCopy> copyRegions =
+    {
+        vk::BufferCopy(0, 0, vertexBufferSize)
+    };
+
+    // Vertex buffer
+    copyCmd.copyBuffer(stagingBuffers.vertices.buffer, mVertices.buffer, copyRegions);
+
+    // Index buffer
+    copyRegions =
+    {
+        vk::BufferCopy(0, 0,  indexBufferSize)
+    };
+
+    copyCmd.copyBuffer(stagingBuffers.indices.buffer, mIndices.buffer, copyRegions);
+
+    // Flushing the command buffer will also submit it to the queue and uses a fence to ensure that all commands have been executed before returning
+    auto flushCommandBuffer = [&](vk::CommandBuffer commandBuffer)
+    {
+        commandBuffer.end();
+
+        std::vector<vk::SubmitInfo> submitInfos = {
+            vk::SubmitInfo(0, nullptr, nullptr, 1, &commandBuffer, 0, nullptr)
+        };
+
+        // Create fence to ensure that the command buffer has finished executing
+        vk::Fence fence = mDevice.createFence(vk::FenceCreateInfo());
+
+        // Submit to the queue
+        mQueue.submit(submitInfos, fence);
+        // Wait for the fence to signal that command buffer has finished executing
+        mDevice.waitForFences(1, &fence, VK_TRUE, UINT_MAX);
+        mDevice.destroyFence(fence);
+        mDevice.freeCommandBuffers(mCommandPool, 1, &commandBuffer);
+    };
+
+    flushCommandBuffer(copyCmd);
+
+    // Destroy staging buffers
+    // Note: Staging buffer must not be deleted before the copies have been submitted and executed
+    mDevice.destroyBuffer(stagingBuffers.vertices.buffer);
+    mDevice.freeMemory(stagingBuffers.vertices.memory);
+    mDevice.destroyBuffer(stagingBuffers.indices.buffer);
+    mDevice.freeMemory(stagingBuffers.indices.memory);
+
+
+    // Vertex input binding
+    mVertices.inputBinding.binding = 0;
+    mVertices.inputBinding.stride = sizeof(Vertex);
+    mVertices.inputBinding.inputRate = vk::VertexInputRate::eVertex;
+
+    // Inpute attribute binding describe shader attribute locations and memory layouts
+    // These match the following shader layout (see triangle.vert):
+    //	layout (location = 0) in vec3 inPos;
+    //	layout (location = 1) in vec3 inColor;
+    mVertices.inputAttributes.resize(2);
+    // Attribute location 0: Position
+    mVertices.inputAttributes[0].binding = 0;
+    mVertices.inputAttributes[0].location = 0;
+    mVertices.inputAttributes[0].format = vk::Format::eR32G32B32Sfloat;
+    mVertices.inputAttributes[0].offset = offsetof(Vertex, position);
+    // Attribute location 1: Color
+    mVertices.inputAttributes[1].binding = 0;
+    mVertices.inputAttributes[1].location = 1;
+    mVertices.inputAttributes[1].format = vk::Format::eR32G32B32Sfloat;
+    mVertices.inputAttributes[1].offset = offsetof(Vertex, color);
+
+    // Assign to the vertex input state used for pipeline creation
+    mVertices.inputState.flags = vk::PipelineVertexInputStateCreateFlags();
+    mVertices.inputState.vertexBindingDescriptionCount = 1;
+    mVertices.inputState.pVertexBindingDescriptions = &mVertices.inputBinding;
+    mVertices.inputState.vertexAttributeDescriptionCount = static_cast<uint32_t>(mVertices.inputAttributes.size());
+    mVertices.inputState.pVertexAttributeDescriptions = mVertices.inputAttributes.data();
+
+    // Prepare and initialize a uniform buffer block containing shader uniforms
+    // Single uniforms like in OpenGL are no longer present in Vulkan. All Shader uniforms are passed via uniform buffer blocks
+
+    // Vertex shader uniform buffer block
+    vk::MemoryAllocateInfo allocInfo = {};
+    allocInfo.pNext = nullptr;
+    allocInfo.allocationSize = 0;
+    allocInfo.memoryTypeIndex = 0;
+
+    // Create a new buffer
+    mUniformDataVS.buffer = mDevice.createBuffer(
+        vk::BufferCreateInfo(
+            vk::BufferCreateFlags(),
+            sizeof(uboVS),
+            vk::BufferUsageFlagBits::eUniformBuffer
+        )
+    );
+    // Get memory requirements including size, alignment and memory type 
+    memReqs = mDevice.getBufferMemoryRequirements(mUniformDataVS.buffer);
+    allocInfo.allocationSize = memReqs.size;
+    // Get the memory type index that supports host visibile memory access
+    // Most implementations offer multiple memory types and selecting the correct one to allocate memory from is crucial
+    // We also want the buffer to be host coherent so we don't have to flush (or sync after every update.
+    // Note: This may affect performance so you might not want to do this in a real world application that updates buffers on a regular base
+    allocInfo.memoryTypeIndex = getMemoryTypeIndex(mPhysicalDevice, memReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    // Allocate memory for the uniform buffer
+    mUniformDataVS.memory = mDevice.allocateMemory(allocInfo);
+    // Bind memory to buffer
+    mDevice.bindBufferMemory(mUniformDataVS.buffer, mUniformDataVS.memory, 0);
+
+    // Store information in the uniform's descriptor that is used by the descriptor set
+    mUniformDataVS.descriptor.buffer = mUniformDataVS.buffer;
+    mUniformDataVS.descriptor.offset = 0;
+    mUniformDataVS.descriptor.range = sizeof(uboVS);
+
+    // Update Uniforms
+    float zoom = -2.5f;
+    auto rotation = Vector3(0.0f, mElapsedTime, 0.0f);
+
+    // Update matrices
+    uboVS.projectionMatrix = Matrix4::perspective(45.0f, (float)mViewport.width / (float)mViewport.height, 0.01f, 1024.0f);
+
+    uboVS.viewMatrix = Matrix4::translation(Vector3(0.0f, 0.0f, zoom));
+
+    uboVS.modelMatrix = Matrix4();
+    uboVS.modelMatrix = uboVS.modelMatrix.rotation(rotation.getX(), Vector3(1.0f, 0.0f, 0.0f));
+    uboVS.modelMatrix = uboVS.modelMatrix.rotation(rotation.getY(), Vector3(0.0f, -1.0f, 0.0f));
+    uboVS.modelMatrix = uboVS.modelMatrix.rotation(rotation.getZ(), Vector3(0.0f, 0.0f, 1.0f));
+
+    // Map uniform buffer and update it
+    void *pData;
+    pData = mDevice.mapMemory(mUniformDataVS.memory, 0, sizeof(uboVS));
+    memcpy(pData, &uboVS, sizeof(uboVS));
+    mDevice.unmapMemory(mUniformDataVS.memory);
+
+
+    std::vector<vk::WriteDescriptorSet> descriptorWrites =
+    {
+        vk::WriteDescriptorSet(
+            mDescriptorSets[0],
+            0,
+            0,
+            1,
+            vk::DescriptorType::eUniformBuffer,
+            nullptr,
+            &mUniformDataVS.descriptor,
+            nullptr
+        )
+    };
+
+    mDevice.updateDescriptorSets(descriptorWrites, nullptr);
+
+    // Create Graphics Pipeline
 
     std::vector<char> vertShaderCode = readFile("bin/triangle.vert.spv");
     std::vector<char> fragShaderCode = readFile("bin/triangle.frag.spv");
@@ -490,7 +725,7 @@ void Renderer::initializeResources()
         )
     );
 
-    auto pipelineCache = mDevice.createPipelineCache(vk::PipelineCacheCreateInfo());
+    vk::PipelineCache pipelineCache = mDevice.createPipelineCache(vk::PipelineCacheCreateInfo());
 
     std::vector<vk::PipelineShaderStageCreateInfo> pipelineShaderStages = {
         vk::PipelineShaderStageCreateInfo(
@@ -509,7 +744,7 @@ void Renderer::initializeResources()
         )
     };
 
-    auto pvi = vertices.inputState;
+    vk::PipelineVertexInputStateCreateInfo pvi = mVertices.inputState;
 
     vk::PipelineInputAssemblyStateCreateInfo pia(
         vk::PipelineInputAssemblyStateCreateFlags(),
@@ -518,10 +753,10 @@ void Renderer::initializeResources()
 
     vk::PipelineViewportStateCreateInfo pv(
         vk::PipelineViewportStateCreateFlagBits(),
-        0,
-        nullptr,
-        0,
-        nullptr
+        1,
+        &mViewport,
+        1,
+        &mRenderArea
     );
 
     vk::PipelineRasterizationStateCreateInfo pr(
@@ -545,7 +780,7 @@ void Renderer::initializeResources()
 
     // Dept and Stencil state for primative compare/test operations
 
-    auto pds = vk::PipelineDepthStencilStateCreateInfo(
+    vk::PipelineDepthStencilStateCreateInfo pds = vk::PipelineDepthStencilStateCreateInfo(
         vk::PipelineDepthStencilStateCreateFlags(),
         VK_TRUE,
         VK_TRUE,
@@ -596,7 +831,7 @@ void Renderer::initializeResources()
     mPipeline = mDevice.createGraphicsPipeline(
         pipelineCache,
         vk::GraphicsPipelineCreateInfo(
-            vk::PipelineCreateFlags(vk::PipelineCreateFlagBits::eDerivative),
+            vk::PipelineCreateFlags(),
             pipelineShaderStages.size(),
             pipelineShaderStages.data(),
             &pvi,
@@ -608,376 +843,26 @@ void Renderer::initializeResources()
             &pds,
             &pbs,
             &pdy,
-            pipelineLayout,
+            mPipelineLayout,
             mRenderPass,
             0
         )
     );
+}
 
-    struct Vertex
+void Renderer::setupCommands()
+{
+    std::vector<vk::ClearValue> clearValues =
     {
-        float position[3];
-        float color[3];
+        vk::ClearColorValue(
+            std::array<float, 4>{0.2f, 0.2f, 0.2f, 1.0f}),
+        vk::ClearDepthStencilValue(1.0f, 0)
     };
-
-    // Vertex buffer and attributes
-    struct {
-        vk::DeviceMemory memory;															// Handle to the device memory for this buffer
-        vk::Buffer buffer;																// Handle to the Vulkan buffer object that the memory is bound to
-        vk::PipelineVertexInputStateCreateInfo inputState;
-        vk::VertexInputBindingDescription inputBinding;
-        std::vector<vk::VertexInputAttributeDescription> inputAttributes;
-    } vertices;
-
-    // Index buffer
-    struct
-    {
-        vk::DeviceMemory memory;
-        vk::Buffer buffer;
-        uint32_t count;
-    } indices;
-
-    // Uniform block object
-    struct {
-        vk::DeviceMemory memory;
-        vk::Buffer buffer;
-        vk::DescriptorBufferInfo descriptor;
-    }  uniformDataVS;
-
-    // For simplicity we use the same uniform block layout as in the shader:
-    //
-    //	layout(set = 0, binding = 0) uniform UBO
-    //	{
-    //		mat4 projectionMatrix;
-    //		mat4 modelMatrix;
-    //		mat4 viewMatrix;
-    //	} ubo;
-    //
-    // This way we can just memcopy the ubo data to the ubo
-    // Note: You should use data types that align with the GPU in order to avoid manual padding (vec4, mat4)
-    struct {
-        Matrix4 projectionMatrix;
-        Matrix4 modelMatrix;
-        Matrix4 viewMatrix;
-    } uboVS;
-
-    // Setup vertices data
-    std::vector<Vertex> vertexBuffer =
-    {
-    { { 1.0f,  1.0f, 0.0f },{ 1.0f, 0.0f, 0.0f } },
-    { { -1.0f,  1.0f, 0.0f },{ 0.0f, 1.0f, 0.0f } },
-    { { 0.0f, -1.0f, 0.0f },{ 0.0f, 0.0f, 1.0f } }
-    };
-
-    uint32_t vertexBufferSize = static_cast<uint32_t>(vertexBuffer.size()) * sizeof(Vertex);
-
-    // Setup indices data
-    std::vector<uint32_t> indexBuffer = { 0, 1, 2 };
-    indices.count = static_cast<uint32_t>(indexBuffer.size());
-    uint32_t indexBufferSize = indices.count * sizeof(uint32_t);
-
-    void *data;
-    // Static data like vertex and index buffer should be stored on the device memory 
-    // for optimal (and fastest) access by the GPU
-    //
-    // To achieve this we use so-called "staging buffers" :
-    // - Create a buffer that's visible to the host (and can be mapped)
-    // - Copy the data to this buffer
-    // - Create another buffer that's local on the device (VRAM) with the same size
-    // - Copy the data from the host to the device using a command buffer
-    // - Delete the host visible (staging) buffer
-    // - Use the device local buffers for rendering
-
-    struct StagingBuffer {
-        vk::DeviceMemory memory;
-        vk::Buffer buffer;
-    };
-
-    struct {
-        StagingBuffer vertices;
-        StagingBuffer indices;
-    } stagingBuffers;
-
-    // Vertex buffer
-    stagingBuffers.vertices.buffer = mDevice.createBuffer(
-        vk::BufferCreateInfo(
-            vk::BufferCreateFlags(),
-            vertexBufferSize,
-            vk::BufferUsageFlagBits::eTransferSrc,
-            vk::SharingMode::eExclusive,
-            1,
-            &mQueueFamilyIndex
-        )
-    );
-
-    auto memReqs = mDevice.getBufferMemoryRequirements(stagingBuffers.vertices.buffer);
-
-    // Request a host visible memory type that can be used to copy our data do
-    // Also request it to be coherent, so that writes are visible to the GPU right after unmapping the buffer
-    stagingBuffers.vertices.memory = mDevice.allocateMemory(
-        vk::MemoryAllocateInfo(
-            memReqs.size,
-            getMemoryTypeIndex(mPhysicalDevice, memReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)
-        )
-    );
-
-    // Map and copy
-    data = mDevice.mapMemory(stagingBuffers.vertices.memory, 0, memReqs.size, vk::MemoryMapFlags());
-    memcpy(data, vertexBuffer.data(), vertexBufferSize);
-    mDevice.unmapMemory(stagingBuffers.vertices.memory);
-    mDevice.bindBufferMemory(stagingBuffers.vertices.buffer, stagingBuffers.vertices.memory, 0);
-
-    // Create a device local buffer to which the (host local) vertex data will be copied and which will be used for rendering
-    vertices.buffer = mDevice.createBuffer(
-        vk::BufferCreateInfo(
-            vk::BufferCreateFlags(),
-            vertexBufferSize,
-            vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
-            vk::SharingMode::eExclusive,
-            1,
-            &mQueueFamilyIndex
-        )
-    );
-
-    memReqs = mDevice.getBufferMemoryRequirements(vertices.buffer);
-
-    vertices.memory = mDevice.allocateMemory(
-        vk::MemoryAllocateInfo(
-            memReqs.size,
-            getMemoryTypeIndex(mPhysicalDevice, memReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal)
-        )
-    );
-
-    mDevice.bindBufferMemory(vertices.buffer, vertices.memory, 0);
-
-    // Index buffer
-    // Copy index data to a buffer visible to the host (staging buffer)
-    stagingBuffers.indices.buffer = mDevice.createBuffer(
-        vk::BufferCreateInfo(
-            vk::BufferCreateFlags(),
-            indexBufferSize,
-            vk::BufferUsageFlagBits::eTransferSrc,
-            vk::SharingMode::eExclusive,
-            1,
-            &mQueueFamilyIndex
-        )
-    );
-    memReqs = mDevice.getBufferMemoryRequirements(stagingBuffers.indices.buffer);
-    stagingBuffers.indices.memory = mDevice.allocateMemory(
-        vk::MemoryAllocateInfo(
-            memReqs.size,
-            getMemoryTypeIndex(mPhysicalDevice, memReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)
-        )
-    );
-
-    data = mDevice.mapMemory(stagingBuffers.indices.memory, 0, indexBufferSize, vk::MemoryMapFlags());
-    memcpy(data, indexBuffer.data(), indexBufferSize);
-    mDevice.unmapMemory(stagingBuffers.indices.memory);
-    mDevice.bindBufferMemory(stagingBuffers.indices.buffer, stagingBuffers.indices.memory, 0);
-
-    // Create destination buffer with device only visibility
-    indices.buffer = mDevice.createBuffer(
-        vk::BufferCreateInfo(
-            vk::BufferCreateFlags(),
-            indexBufferSize,
-            vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer,
-            vk::SharingMode::eExclusive,
-            0,
-            nullptr
-        )
-    );
-
-    memReqs = mDevice.getBufferMemoryRequirements(indices.buffer);
-    indices.memory = mDevice.allocateMemory(
-        vk::MemoryAllocateInfo(
-            memReqs.size,
-            getMemoryTypeIndex(mPhysicalDevice, memReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal
-            )
-        )
-    );
-
-    mDevice.bindBufferMemory(indices.buffer, indices.memory, 0);
-
-    auto getCommandBuffer = [&](bool begin)
-    {
-        vk::CommandBuffer cmdBuffer = mDevice.allocateCommandBuffers(
-            vk::CommandBufferAllocateInfo(
-                mCommandPool,
-                vk::CommandBufferLevel::ePrimary,
-                1)
-        )[0];
-
-        // If requested, also start the new command buffer
-        if (begin)
-        {
-            cmdBuffer.begin(
-                vk::CommandBufferBeginInfo()
-            );
-        }
-
-        return cmdBuffer;
-    };
-
-    // Buffer copies have to be submitted to a queue, so we need a command buffer for them
-    // Note: Some devices offer a dedicated transfer queue (with only the transfer bit set) that may be faster when doing lots of copies
-    vk::CommandBuffer copyCmd = getCommandBuffer(true);
-
-    // Put buffer region copies into command buffer
-    std::vector<vk::BufferCopy> copyRegions =
-    {
-        vk::BufferCopy(0, 0, vertexBufferSize)
-    };
-
-    // Vertex buffer
-    copyCmd.copyBuffer(stagingBuffers.vertices.buffer, vertices.buffer, copyRegions);
-
-    // Index buffer
-    copyRegions =
-    {
-        vk::BufferCopy(0, 0,  indexBufferSize)
-    };
-
-    copyCmd.copyBuffer(stagingBuffers.indices.buffer, indices.buffer, copyRegions);
-
-    // Flushing the command buffer will also submit it to the queue and uses a fence to ensure that all commands have been executed before returning
-    auto flushCommandBuffer = [&](vk::CommandBuffer commandBuffer)
-    {
-        commandBuffer.end();
-
-        std::vector<vk::SubmitInfo> submitInfos = {
-            vk::SubmitInfo(0, nullptr, nullptr, 1, &commandBuffer, 0, nullptr)
-        };
-
-        // Create fence to ensure that the command buffer has finished executing
-        vk::Fence fence = mDevice.createFence(vk::FenceCreateInfo());
-
-        // Submit to the queue
-        mQueue.submit(submitInfos, fence);
-        // Wait for the fence to signal that command buffer has finished executing
-        mDevice.waitForFences(1, &fence, VK_TRUE, UINT_MAX);
-        mDevice.destroyFence(fence);
-        mDevice.freeCommandBuffers(mCommandPool, 1, &commandBuffer);
-    };
-
-    flushCommandBuffer(copyCmd);
-
-    // Destroy staging buffers
-    // Note: Staging buffer must not be deleted before the copies have been submitted and executed
-    mDevice.destroyBuffer(stagingBuffers.vertices.buffer);
-    mDevice.freeMemory(stagingBuffers.vertices.memory);
-    mDevice.destroyBuffer(stagingBuffers.indices.buffer);
-    mDevice.freeMemory(stagingBuffers.indices.memory);
-
-
-    // Vertex input binding
-    vertices.inputBinding.binding = 0;
-    vertices.inputBinding.stride = sizeof(Vertex);
-    vertices.inputBinding.inputRate = vk::VertexInputRate::eVertex;
-
-    // Inpute attribute binding describe shader attribute locations and memory layouts
-    // These match the following shader layout (see triangle.vert):
-    //	layout (location = 0) in vec3 inPos;
-    //	layout (location = 1) in vec3 inColor;
-    vertices.inputAttributes.resize(2);
-    // Attribute location 0: Position
-    vertices.inputAttributes[0].binding = 0;
-    vertices.inputAttributes[0].location = 0;
-    vertices.inputAttributes[0].format = vk::Format::eR32G32B32Sfloat;
-    vertices.inputAttributes[0].offset = offsetof(Vertex, position);
-    // Attribute location 1: Color
-    vertices.inputAttributes[1].binding = 0;
-    vertices.inputAttributes[1].location = 1;
-    vertices.inputAttributes[1].format = vk::Format::eR32G32B32Sfloat;
-    vertices.inputAttributes[1].offset = offsetof(Vertex, color);
-
-    // Assign to the vertex input state used for pipeline creation
-    vertices.inputState.flags = vk::PipelineVertexInputStateCreateFlags();
-    vertices.inputState.vertexBindingDescriptionCount = 1;
-    vertices.inputState.pVertexBindingDescriptions = &vertices.inputBinding;
-    vertices.inputState.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertices.inputAttributes.size());
-    vertices.inputState.pVertexAttributeDescriptions = vertices.inputAttributes.data();
-
-#pragma region UniformBuffers
-    // Prepare and initialize a uniform buffer block containing shader uniforms
-    // Single uniforms like in OpenGL are no longer present in Vulkan. All Shader uniforms are passed via uniform buffer blocks
-
-    // Vertex shader uniform buffer block
-    vk::MemoryAllocateInfo allocInfo = {};
-    allocInfo.pNext = nullptr;
-    allocInfo.allocationSize = 0;
-    allocInfo.memoryTypeIndex = 0;
-
-    // Create a new buffer
-    uniformDataVS.buffer = mDevice.createBuffer(
-        vk::BufferCreateInfo(
-            vk::BufferCreateFlags(),
-            sizeof(uboVS),
-            vk::BufferUsageFlagBits::eUniformBuffer
-        )
-    );
-    // Get memory requirements including size, alignment and memory type 
-    memReqs = mDevice.getBufferMemoryRequirements(uniformDataVS.buffer);
-    allocInfo.allocationSize = memReqs.size;
-    // Get the memory type index that supports host visibile memory access
-    // Most implementations offer multiple memory types and selecting the correct one to allocate memory from is crucial
-    // We also want the buffer to be host coherent so we don't have to flush (or sync after every update.
-    // Note: This may affect performance so you might not want to do this in a real world application that updates buffers on a regular base
-    allocInfo.memoryTypeIndex = getMemoryTypeIndex(mPhysicalDevice, memReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-    // Allocate memory for the uniform buffer
-    uniformDataVS.memory = mDevice.allocateMemory(allocInfo);
-    // Bind memory to buffer
-    mDevice.bindBufferMemory(uniformDataVS.buffer, uniformDataVS.memory, 0);
-
-    // Store information in the uniform's descriptor that is used by the descriptor set
-    uniformDataVS.descriptor.buffer = uniformDataVS.buffer;
-    uniformDataVS.descriptor.offset = 0;
-    uniformDataVS.descriptor.range = sizeof(uboVS);
-#pragma endregion
-
-#pragma region UpdateUniforms
-
-    float zoom = -2.5f;
-    auto rotation = Vector3();
-
-    // Update matrices
-    uboVS.projectionMatrix = Matrix4::perspective(60.0f, (float)mViewport.width / (float)mViewport.height, 0.1f, 256.0f);
-
-    uboVS.viewMatrix = Matrix4::translation(Vector3(0.0f, 0.0f, zoom));
-
-    uboVS.modelMatrix = Matrix4();
-    uboVS.modelMatrix = uboVS.modelMatrix.rotation(rotation.getX(), Vector3(1.0f, 0.0f, 0.0f));
-    uboVS.modelMatrix = uboVS.modelMatrix.rotation(rotation.getY(), Vector3(0.0f, 1.0f, 0.0f));
-    uboVS.modelMatrix = uboVS.modelMatrix.rotation(rotation.getZ(), Vector3(0.0f, 0.0f, 1.0f));
-
-    // Map uniform buffer and update it
-    void *pData;
-    pData = mDevice.mapMemory(uniformDataVS.memory, 0, sizeof(uboVS));
-    memcpy(pData, &uboVS, sizeof(uboVS));
-    mDevice.unmapMemory(uniformDataVS.memory);
-
-#pragma endregion
-
-#pragma region DescriptorSetUpdate
-    std::vector<vk::WriteDescriptorSet> descriptorWrites =
-    {
-        vk::WriteDescriptorSet(
-            mDescriptorSets[0],
-            0,
-            0,
-            1,
-            vk::DescriptorType::eUniformBuffer,
-            nullptr,
-            &uniformDataVS.descriptor,
-            nullptr
-        )
-    };
-
-    mDevice.updateDescriptorSets(descriptorWrites, nullptr);
-#pragma endregion
 
     for (size_t i = 0; i < mCommandBuffers.size(); ++i)
     {
         vk::CommandBuffer& cmd = mCommandBuffers[i];
+        cmd.reset(vk::CommandBufferResetFlagBits::eReleaseResources);
         cmd.begin(vk::CommandBufferBeginInfo());
         cmd.beginRenderPass(
             vk::RenderPassBeginInfo(
@@ -988,35 +873,49 @@ void Renderer::initializeResources()
                 clearValues.data()),
             vk::SubpassContents::eInline);
 
-        cmd.setViewport(0, nullptr);
+        cmd.setViewport(0, 1, &mViewport);
 
-        cmd.setScissor(0, nullptr);
+        cmd.setScissor(0, 1, &mRenderArea);
 
         // Bind Descriptor Sets, these are attribute/uniform "descriptions"
         cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mPipeline);
 
         cmd.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
-            pipelineLayout,
+            mPipelineLayout,
             0,
             mDescriptorSets,
-            nullptr);
-        vk::DeviceSize offsets = { 0 };
-        cmd.bindVertexBuffers(0, 1, &vertices.buffer, &offsets);
-        cmd.bindIndexBuffer(indices.buffer, 0, vk::IndexType::eUint32);
-        cmd.drawIndexed(3, 1, 0, 0, 1);
+            nullptr
+        );
+
+        vk::DeviceSize offsets = 0;
+        cmd.bindVertexBuffers(0, 1, &mVertices.buffer, &offsets);
+        cmd.bindIndexBuffer(mIndices.buffer, 0, vk::IndexType::eUint32);
+        cmd.drawIndexed(mIndices.count, 1, 0, 0, 1);
         cmd.endRenderPass();
         cmd.end();
     }
-
 }
 
 void Renderer::render()
 {
+
+    // Update Uniforms
+    mElapsedTime += 0.0001f;
+    float zoom = -2.5f;
+    Vector3 rotation = Vector3(0.0f, mElapsedTime, 0.0f);
+
+    uboVS.modelMatrix = Matrix4::rotationY(mElapsedTime);
+
+    void *pData;
+    pData = mDevice.mapMemory(mUniformDataVS.memory, 0, sizeof(uboVS));
+    memcpy(pData, &uboVS, sizeof(uboVS));
+    mDevice.unmapMemory(mUniformDataVS.memory);
+
+    // Swap backbuffers
     mDevice.acquireNextImageKHR(mSwapchain, ULLONG_MAX, mPresentCompleteSemaphore, nullptr, &mCurrentBuffer);
     mDevice.waitForFences(1, &mWaitFences[mCurrentBuffer], VK_TRUE, UINT64_MAX);
     mDevice.resetFences(1, &mWaitFences[mCurrentBuffer]);
-
 
     vk::SubmitInfo submitInfo;
 
@@ -1047,6 +946,16 @@ void Renderer::render()
 
 void Renderer::resize(unsigned width, unsigned height)
 {
+    mDevice.waitIdle();
+    setupSwapchain(width, height);
+    setupCommands();
+    mDevice.waitIdle();
+}
+
+void Renderer::setupSwapchain(unsigned width, unsigned height)
+{
+    // Setup viewports, Vsync
+
     mSurfaceSize = vk::Extent2D(width, height);
     mRenderArea = vk::Rect2D(vk::Offset2D(), mSurfaceSize);
     mViewport = vk::Viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0, 1.0f);
@@ -1068,6 +977,29 @@ void Renderer::resize(unsigned width, unsigned height)
         }
     }
 
+    // Free old images / memory / command buffers
+    if (mDepthImageMemory != nullptr)
+    {
+        mDevice.freeCommandBuffers(mCommandPool, mCommandBuffers);
+
+        mDevice.freeMemory(mDepthImageMemory);
+        mDevice.destroyImage(mDepthImage);
+        mDevice.destroyImageView(mSwapchainBuffers[0].views[1]);
+        for (size_t i = 0; i < surfaceCapabilities.maxImageCount; ++i)
+        {
+            mDevice.destroyImageView(mSwapchainBuffers[i].views[0]);
+            mDevice.destroyFramebuffer(mSwapchainBuffers[i].frameBuffer);
+        }
+    }
+
+
+
+    // Create Swapchain, Images, Frame Buffers
+
+
+
+    // ColorFormats
+    // Check to see if we can display rgb colors.
     std::vector<vk::SurfaceFormatKHR> surfaceFormats = mPhysicalDevice.getSurfaceFormatsKHR(mSurface);
 
     vk::Format surfaceColorFormat;
@@ -1079,6 +1011,9 @@ void Renderer::resize(unsigned width, unsigned height)
         surfaceColorFormat = surfaceFormats[0].format;
 
     surfaceColorSpace = surfaceFormats[0].colorSpace;
+
+    mDevice.waitIdle();
+    vk::SwapchainKHR oldSwapchain = mSwapchain;
 
     mSwapchain = mDevice.createSwapchainKHR(
         vk::SwapchainCreateInfoKHR(
@@ -1097,7 +1032,145 @@ void Renderer::resize(unsigned width, unsigned height)
             vk::CompositeAlphaFlagBitsKHR::eOpaque,
             presentMode,
             VK_TRUE,
-            mSwapchain
+            oldSwapchain
         )
     );
+
+    if (oldSwapchain != nullptr)
+    {
+        mDevice.destroySwapchainKHR(oldSwapchain);
+    }
+
+    /**
+    * Create Swapchain, FrameBuffer, and FrameBuffer attachments from swapchain and a created single depth buffer:
+    */
+
+    // Since all depth formats may be optional, we need to find a suitable depth format to use
+    // Start with the highest precision packed format
+    std::vector<vk::Format> depthFormats =
+    {
+        vk::Format::eD32SfloatS8Uint,
+        vk::Format::eD32Sfloat,
+        vk::Format::eD24UnormS8Uint,
+        vk::Format::eD16UnormS8Uint,
+        vk::Format::eD16Unorm
+    };
+
+    vk::Format surfaceDepthFormat;
+
+    for (vk::Format& format : depthFormats)
+    {
+        vk::FormatProperties depthFormatProperties = mPhysicalDevice.getFormatProperties(format);
+        // Format must support depth stencil attachment for optimal tiling
+        if (depthFormatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
+        {
+            surfaceDepthFormat = format;
+            break;
+        }
+    }
+
+    // Create Depth Image Data
+    mDepthImage = mDevice.createImage(
+        vk::ImageCreateInfo(
+            vk::ImageCreateFlags(),
+            vk::ImageType::e2D,
+            surfaceDepthFormat,
+            vk::Extent3D(mSurfaceSize.width, mSurfaceSize.height, 1),
+            1U,
+            1U,
+            vk::SampleCountFlagBits::e1,
+            vk::ImageTiling::eOptimal,
+            vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eTransferSrc,
+            vk::SharingMode::eExclusive,
+            1,
+            &mQueueFamilyIndex,
+            vk::ImageLayout::eUndefined
+        )
+    );
+
+    vk::MemoryRequirements depthMemoryReq = mDevice.getImageMemoryRequirements(mDepthImage);
+
+    // Search through GPU memory properies to see if this can be device local.
+
+    mDepthImageMemory = mDevice.allocateMemory(
+        vk::MemoryAllocateInfo(
+            depthMemoryReq.size,
+            getMemoryTypeIndex(mPhysicalDevice, depthMemoryReq.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal)
+        )
+    );
+
+    mDevice.bindImageMemory(
+        mDepthImage,
+        mDepthImageMemory,
+        0
+    );
+
+    vk::ImageView depthImageView = mDevice.createImageView(
+        vk::ImageViewCreateInfo(
+            vk::ImageViewCreateFlags(),
+            mDepthImage,
+            vk::ImageViewType::e2D,
+            surfaceDepthFormat,
+            vk::ComponentMapping(),
+            vk::ImageSubresourceRange(
+                vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil,
+                0,
+                1,
+                0,
+                1
+            )
+        )
+    );
+    std::vector<vk::Image> swapchainImages = mDevice.getSwapchainImagesKHR(mSwapchain);
+
+    mSwapchainBuffers.resize(swapchainImages.size());
+
+    for (size_t i = 0; i < swapchainImages.size(); i++)
+    {
+        mSwapchainBuffers[i].image = swapchainImages[i];
+
+        // Color
+        mSwapchainBuffers[i].views[0] =
+            mDevice.createImageView(
+                vk::ImageViewCreateInfo(
+                    vk::ImageViewCreateFlags(),
+                    swapchainImages[i],
+                    vk::ImageViewType::e2D,
+                    surfaceColorFormat,
+                    vk::ComponentMapping(),
+                    vk::ImageSubresourceRange(
+                        vk::ImageAspectFlagBits::eColor,
+                        0,
+                        1,
+                        0,
+                        1
+                    )
+                )
+            );
+
+        // Depth
+        mSwapchainBuffers[i].views[1] = depthImageView;
+
+        mSwapchainBuffers[i].frameBuffer = mDevice.createFramebuffer(
+            vk::FramebufferCreateInfo(
+                vk::FramebufferCreateFlags(),
+                mRenderPass,
+                mSwapchainBuffers[i].views.size(),
+                mSwapchainBuffers[i].views.data(),
+                mSurfaceSize.width,
+                mSurfaceSize.height,
+                1
+            )
+        );
+    }
+
+    if (oldSwapchain != nullptr)
+    {
+        mCommandBuffers = mDevice.allocateCommandBuffers(
+            vk::CommandBufferAllocateInfo(
+                mCommandPool,
+                vk::CommandBufferLevel::ePrimary,
+                swapchainImages.size())
+        );
+    }
 }
