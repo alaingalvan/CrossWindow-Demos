@@ -194,15 +194,6 @@ void Renderer::initializeAPI(xwin::Window& window)
      * Initialize the Vulkan API by creating its various API entry points:
      */
 
-     // ⚪ Instance
-    vk::ApplicationInfo appInfo(
-        "Hello Triangle",
-        0,
-        "HelloTriangleEngine",
-        0,
-        VK_API_VERSION_1_0
-    );
-
 
     // 🔍 Find the best Instance Extensions
 
@@ -251,6 +242,15 @@ void Renderer::initializeAPI(xwin::Window& window)
 
     findBestLayers(installedLayers, wantedLayers, layers);
 
+    // ⚪ Instance
+    vk::ApplicationInfo appInfo(
+        "Hello Triangle",
+        0,
+        "HelloTriangleEngine",
+        0,
+        VK_API_VERSION_1_0
+    );
+
     vk::InstanceCreateInfo info(
         vk::InstanceCreateFlags(),
         &appInfo,
@@ -268,13 +268,6 @@ void Renderer::initializeAPI(xwin::Window& window)
 
     // Queue Family
     mQueueFamilyIndex = getQueueIndex(mPhysicalDevice, vk::QueueFlagBits::eGraphics);
-
-    // Surface
-    mSurface = xgfx::getSurface(&window, mInstance);
-    if (!mPhysicalDevice.getSurfaceSupportKHR(mQueueFamilyIndex, mSurface))
-    {
-        // Failed to create surface
-    }
 
     // Queue Creation
     vk::DeviceQueueCreateInfo qcinfo;
@@ -313,8 +306,15 @@ void Renderer::initializeAPI(xwin::Window& window)
         )
     );
 
-    // Get swapchain and depth buffer formats:
-    // Check to see if we can display rgb colors.
+    // Surface
+    mSurface = xgfx::getSurface(&window, mInstance);
+    if (!mPhysicalDevice.getSurfaceSupportKHR(mQueueFamilyIndex, mSurface))
+    {
+        // Failed to create surface
+        return;
+    }
+
+    // Surface Attachement Formats
 
     std::vector<vk::SurfaceFormatKHR> surfaceFormats = mPhysicalDevice.getSurfaceFormatsKHR(mSurface);
 
@@ -339,6 +339,7 @@ void Renderer::initializeAPI(xwin::Window& window)
     for (vk::Format& format : depthFormats)
     {
         vk::FormatProperties depthFormatProperties = mPhysicalDevice.getFormatProperties(format);
+
         // Format must support depth stencil attachment for optimal tiling
         if (depthFormatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
         {
@@ -354,6 +355,7 @@ void Renderer::initializeAPI(xwin::Window& window)
     // Command Buffers
     createCommands();
 
+    // Sync
     createSynchronization();
 }
 
@@ -365,7 +367,7 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
     mViewport = vk::Viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0, 1.0f);
 
     vk::SurfaceCapabilitiesKHR surfaceCapabilities = mPhysicalDevice.getSurfaceCapabilitiesKHR(mSurface);
-    std::vector<vk::PresentModeKHR> surfacePresentModes = mPhysicalDevice.getSurfacePresentModesKHR(mSurface);
+    
 
     // check the surface width/height.
     if (!(surfaceCapabilities.currentExtent.width == -1 || surfaceCapabilities.currentExtent.height == -1)) {
@@ -374,6 +376,8 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
         mViewport = vk::Viewport(0.0f, 0.0f, static_cast<float>(mSurfaceSize.width), static_cast<float>(mSurfaceSize.height), 0, 1.0f);
     }
 
+    // VSync
+    std::vector<vk::PresentModeKHR> surfacePresentModes = mPhysicalDevice.getSurfacePresentModesKHR(mSurface);
     vk::PresentModeKHR presentMode = vk::PresentModeKHR::eImmediate;
 
     for (vk::PresentModeKHR& pm : surfacePresentModes) {
@@ -409,6 +413,7 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
         )
     );
 
+    // Destroy previous swapchain
     if (oldSwapchain != nullptr)
     {
         mDevice.destroySwapchainKHR(oldSwapchain);
@@ -1252,7 +1257,5 @@ void Renderer::resize(unsigned width, unsigned height)
 
     // Uniforms
     uboVS.projectionMatrix = Matrix4::perspective(45.0f, (float)mViewport.width / (float)mViewport.height, 0.01f, 1024.0f);
-
-    mDevice.waitIdle();
 }
 

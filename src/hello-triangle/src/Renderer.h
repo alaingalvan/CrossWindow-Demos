@@ -136,6 +136,7 @@ protected:
   vk::Semaphore mRenderCompleteSemaphore;
   std::vector<vk::Fence> mWaitFences;
 
+  // Swpachain
   struct SwapChainBuffer {
       vk::Image image;
       std::array<vk::ImageView, 2> views;
@@ -168,17 +169,7 @@ protected:
       vk::DescriptorBufferInfo descriptor;
   }  mUniformDataVS;
 
-  // For simplicity we use the same uniform block layout as in the shader:
-  //
-  //	layout(set = 0, binding = 0) uniform UBO
-  //	{
-  //		mat4 projectionMatrix;
-  //		mat4 modelMatrix;
-  //		mat4 viewMatrix;
-  //	} ubo;
-  //
-  // This way we can just memcopy the ubo data to the ubo
-  // Note: You should use data types that align with the GPU in order to avoid manual padding (vec4, mat4)
+  // Uniform data
   struct {
       Matrix4 projectionMatrix;
       Matrix4 modelMatrix;
