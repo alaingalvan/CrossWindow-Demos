@@ -1,4 +1,5 @@
 ﻿#define XGFX_IMPL
+
 #include "Renderer.h"
 #include <fstream>
 
@@ -97,8 +98,54 @@ Renderer::Renderer(xwin::Window& window)
 
 Renderer::~Renderer()
 {
-    mDevice.freeCommandBuffers(mCommandPool, mCommandBuffers.size(), mCommandBuffers.data());
     mDevice.waitIdle();
+
+    mDevice.freeCommandBuffers(mCommandPool, mCommandBuffers.size(), mCommandBuffers.data());
+    mDevice.destroyCommandPool(mCommandPool);
+
+    // Vertices
+    mDevice.freeMemory(mVertices.memory);
+    mDevice.destroyBuffer(mVertices.buffer);
+
+    // Shader Module
+    mDevice.destroyShaderModule(mVertModule);
+    mDevice.destroyShaderModule(mFragModule);
+
+    // Render Pass
+    mDevice.destroyRenderPass(mRenderPass);
+
+    // Graphics Pipeline
+    mDevice.destroyPipelineCache(mPipelineCache);
+    mDevice.destroyPipeline(mPipeline);
+    mDevice.destroyPipelineLayout(mPipelineLayout);
+
+    mDevice.destroyDescriptorPool(mDescriptorPool);
+
+    for (vk::DescriptorSetLayout& dsl : mDescriptorSetLayouts)
+    {
+        mDevice.destroyDescriptorSetLayout(dsl);
+    }
+
+    // Index buffer
+    mDevice.freeMemory(mIndices.memory);
+    mDevice.destroyBuffer(mIndices.buffer);
+
+    // Uniform block object
+    mDevice.freeMemory(mUniformDataVS.memory);
+    mDevice.destroyBuffer(mUniformDataVS.buffer);
+
+    // Destroy Framebuffers, Image Views
+    destroyResources();
+    mDevice.destroySwapchainKHR(mSwapchain);
+
+    // Sync
+    mDevice.destroySemaphore(mPresentCompleteSemaphore);
+    mDevice.destroySemaphore(mRenderCompleteSemaphore);
+    for (const vk::Fence& f : mWaitFences)
+    {
+        mDevice.destroyFence(f);
+    }
+
     destroyAPI();
 }
 
@@ -116,7 +163,7 @@ void Renderer::initializeAPI(xwin::Window& window)
         0,
         VK_API_VERSION_1_0
     );
-    
+
 
     // 🔍 Find the best Instance Extensions
 
@@ -146,7 +193,7 @@ void Renderer::initializeAPI(xwin::Window& window)
 #elif VK_USE_PLATFORM_IOS_MVK
         VK_MVK_IOS_SURFACE_EXTENSION_NAME;
 #endif
-    };
+};
 
     std::vector<const char*> extensions = {};
 
@@ -663,7 +710,7 @@ void Renderer::initializeResources()
         )
     );
 
-    vk::PipelineCache pipelineCache = mDevice.createPipelineCache(vk::PipelineCacheCreateInfo());
+    mPipelineCache = mDevice.createPipelineCache(vk::PipelineCacheCreateInfo());
 
     std::vector<vk::PipelineShaderStageCreateInfo> pipelineShaderStages = {
         vk::PipelineShaderStageCreateInfo(
@@ -767,7 +814,7 @@ void Renderer::initializeResources()
     );
 
     mPipeline = mDevice.createGraphicsPipeline(
-        pipelineCache,
+        mPipelineCache,
         vk::GraphicsPipelineCreateInfo(
             vk::PipelineCreateFlags(),
             pipelineShaderStages.size(),
@@ -905,10 +952,10 @@ void Renderer::resize(unsigned width, unsigned height)
     destroyCommands();
     createCommands();
     setupCommands();
-    
+
     // Uniforms
     uboVS.projectionMatrix = Matrix4::perspective(45.0f, (float)mViewport.width / (float)mViewport.height, 0.01f, 1024.0f);
-    
+
     mDevice.waitIdle();
 }
 
@@ -976,7 +1023,13 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
 
 void Renderer::destroyAPI()
 {
+    // Device
+    mDevice.destroy();
+
+    // Surface
     mInstance.destroySurfaceKHR(mSurface);
+
+    // Instance
     mInstance.destroy();
 }
 

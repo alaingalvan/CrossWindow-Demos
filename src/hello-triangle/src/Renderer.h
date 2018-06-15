@@ -123,6 +123,7 @@ protected:
   vk::Buffer mVertexBuffer;
   vk::Buffer mIndexBuffer;
 
+  vk::PipelineCache mPipelineCache;
   vk::Pipeline mPipeline;
   vk::PipelineLayout mPipelineLayout;
 
