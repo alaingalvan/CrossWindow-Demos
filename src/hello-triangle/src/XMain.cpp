@@ -22,7 +22,7 @@ void xmain(int argc, const char** argv)
     bool isRunning = true;
     while (isRunning)
     {
-        bool shouldRender = true; 
+        bool shouldRender = true;
 
         // ♻️ Update the event queue
         eventQueue.update();
@@ -33,34 +33,28 @@ void xmain(int argc, const char** argv)
             //Update Events
             const xwin::Event& event = eventQueue.front();
 
-            switch (event.type)
-            {
-            case xwin::EventType::Resize:
+            if (event.type == xwin::EventType::Resize)
             {
                 const xwin::ResizeData data = event.data.resize;
                 renderer.resize(data.width, data.height);
                 shouldRender = false;
-                break;
             }
-            case xwin::EventType::Close:
+
+            if (event.type == xwin::EventType::Close)
             {
                 window.close();
                 shouldRender = false;
                 isRunning = false;
-                break;
-            }
-            default:
-            {
-                // Do nothing
-                break;
-            }
             }
 
             eventQueue.pop();
         }
 
         // ✨ Update Visuals
-        if (shouldRender) { renderer.render(); }
+        if (shouldRender)
+        {
+            renderer.render();
+        }
     }
 
 }

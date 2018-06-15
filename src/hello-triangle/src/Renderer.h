@@ -29,11 +29,23 @@ public:
   // Initialize your Graphics API
   void initializeAPI(xwin::Window& window);
 
-  // Initialize any resources used n this example
+  // Destroy any Graphics API data structures used in this example
+  void destroyAPI();
+
+  // Initialize any resources used in this example
   void initializeResources();
 
-  // Set up commands and hook them up
+  // Destroy any resources used in this example
+  void destroyResources();
+
+  // Create graphics API specific data structures to send commands to the GPU
+  void createCommands();
+
+  // Set up commands used when rendering frame by this app
   void setupCommands();
+
+  // Destroy all commands
+  void destroyCommands();
 
   // Render onto the render target
   void render();
@@ -43,6 +55,15 @@ public:
 
 protected:
 
+    // Set up the FrameBuffer
+    void setupFrameBuffer();
+
+    // Set up the RenderPass
+    void createRenderPass();
+
+    void createSynchronization();
+
+    // Set up the swapchain
     void setupSwapchain(unsigned width, unsigned height);
 
   struct Vertex
@@ -67,30 +88,41 @@ protected:
   vk::Instance mInstance;
   vk::PhysicalDevice mPhysicalDevice;
   vk::Device mDevice;
+
   vk::SwapchainKHR mSwapchain;
   vk::SurfaceKHR mSurface;
+
   float mQueuePriority;
   vk::Queue mQueue;
   uint32_t mQueueFamilyIndex;
+
   vk::CommandPool mCommandPool;
   std::vector<vk::CommandBuffer> mCommandBuffers;
   uint32_t mCurrentBuffer;
+
   vk::Extent2D mSurfaceSize;
   vk::Rect2D mRenderArea;
   vk::Viewport mViewport;
   
   // Resources
+  vk::Format mSurfaceColorFormat;
+  vk::ColorSpaceKHR mSurfaceColorSpace;
+  vk::Format mSurfaceDepthFormat;
   vk::Image mDepthImage;
   vk::DeviceMemory mDepthImageMemory;
 
   vk::DescriptorPool mDescriptorPool;
   std::vector<vk::DescriptorSetLayout> mDescriptorSetLayouts;
   std::vector<vk::DescriptorSet> mDescriptorSets;
+
   vk::ShaderModule mVertModule;
   vk::ShaderModule mFragModule;
+
   vk::RenderPass mRenderPass;
+
   vk::Buffer mVertexBuffer;
   vk::Buffer mIndexBuffer;
+
   vk::Pipeline mPipeline;
   vk::PipelineLayout mPipelineLayout;
 
