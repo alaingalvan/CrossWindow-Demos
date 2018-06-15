@@ -3,109 +3,117 @@
 #include "Renderer.h"
 #include <fstream>
 
-namespace
+
+void findBestExtensions(const std::vector<vk::ExtensionProperties>& installed, const std::vector<const char*>& wanted, std::vector<const char*>& out)
 {
-    void findBestExtensions(const std::vector<vk::ExtensionProperties>& installed, const std::vector<const char*>& wanted, std::vector<const char*>& out)
-    {
-        for (const char* const& w : wanted) {
-            for (vk::ExtensionProperties const& i : installed) {
-                if (std::string(i.extensionName).compare(w) == 0) {
-                    out.emplace_back(w);
-                    break;
-                }
+    for (const char* const& w : wanted) {
+        for (vk::ExtensionProperties const& i : installed) {
+            if (std::string(i.extensionName).compare(w) == 0) {
+                out.emplace_back(w);
+                break;
             }
         }
     }
-
-    void findBestLayers(const std::vector<vk::LayerProperties>& installed, const std::vector<const char*>& wanted, std::vector<const char*>& out)
-    {
-        for (const char* const& w : wanted) {
-            for (vk::LayerProperties const& i : installed) {
-                if (std::string(i.layerName).compare(w) == 0) {
-                    out.emplace_back(w);
-                    break;
-                }
-            }
-        }
-    }
-
-    uint32_t getQueueIndex(vk::PhysicalDevice& physicalDevice, vk::QueueFlagBits flags)
-    {
-        std::vector<vk::QueueFamilyProperties> queueProps = physicalDevice.getQueueFamilyProperties();
-
-        for (size_t i = 0; i < queueProps.size(); ++i)
-        {
-            if (queueProps[i].queueFlags & flags) {
-                return static_cast<uint32_t>(i);
-            }
-        }
-
-        // Default queue index
-        return 0;
-    }
-
-    uint32_t getMemoryTypeIndex(vk::PhysicalDevice& physicalDevice, uint32_t typeBits, vk::MemoryPropertyFlags properties)
-    {
-        auto gpuMemoryProps = physicalDevice.getMemoryProperties();
-        for (uint32_t i = 0; i < gpuMemoryProps.memoryTypeCount; i++)
-        {
-            if ((typeBits & 1) == 1)
-            {
-                if ((gpuMemoryProps.memoryTypes[i].propertyFlags & properties) == properties)
-                {
-                    return i;
-                }
-            }
-            typeBits >>= 1;
-        }
-        return 0;
-    };
-
-    std::vector<char> readFile(const std::string& filename) {
-        std::string path = filename;
-#ifdef XWIN_WIN32
-        char pBuf[256];
-        _getcwd(pBuf, 256);
-        path = pBuf;
-        path += "\\";
-#endif
-        path += filename;
-        std::ifstream file(path, std::ios::ate | std::ios::binary);
-        bool exists = (bool)file;
-
-        if (!exists || !file.is_open()) {
-            throw std::runtime_error("failed to open file!");
-        }
-
-        size_t fileSize = (size_t)file.tellg();
-        std::vector<char> buffer(fileSize);
-
-        file.seekg(0);
-        file.read(buffer.data(), fileSize);
-
-        file.close();
-
-        return buffer;
-    };
 }
+
+void findBestLayers(const std::vector<vk::LayerProperties>& installed, const std::vector<const char*>& wanted, std::vector<const char*>& out)
+{
+    for (const char* const& w : wanted) {
+        for (vk::LayerProperties const& i : installed) {
+            if (std::string(i.layerName).compare(w) == 0) {
+                out.emplace_back(w);
+                break;
+            }
+        }
+    }
+}
+
+uint32_t getQueueIndex(vk::PhysicalDevice& physicalDevice, vk::QueueFlagBits flags)
+{
+    std::vector<vk::QueueFamilyProperties> queueProps = physicalDevice.getQueueFamilyProperties();
+
+    for (size_t i = 0; i < queueProps.size(); ++i)
+    {
+        if (queueProps[i].queueFlags & flags) {
+            return static_cast<uint32_t>(i);
+        }
+    }
+
+    // Default queue index
+    return 0;
+}
+
+uint32_t getMemoryTypeIndex(vk::PhysicalDevice& physicalDevice, uint32_t typeBits, vk::MemoryPropertyFlags properties)
+{
+    auto gpuMemoryProps = physicalDevice.getMemoryProperties();
+    for (uint32_t i = 0; i < gpuMemoryProps.memoryTypeCount; i++)
+    {
+        if ((typeBits & 1) == 1)
+        {
+            if ((gpuMemoryProps.memoryTypes[i].propertyFlags & properties) == properties)
+            {
+                return i;
+            }
+        }
+        typeBits >>= 1;
+    }
+    return 0;
+};
+
+std::vector<char> readFile(const std::string& filename) {
+    std::string path = filename;
+#ifdef XWIN_WIN32
+    char pBuf[256];
+    _getcwd(pBuf, 256);
+    path = pBuf;
+    path += "\\";
+#endif
+    path += filename;
+    std::ifstream file(path, std::ios::ate | std::ios::binary);
+    bool exists = (bool)file;
+
+    if (!exists || !file.is_open()) {
+        throw std::runtime_error("failed to open file!");
+    }
+
+    size_t fileSize = (size_t)file.tellg();
+    std::vector<char> buffer(fileSize);
+
+    file.seekg(0);
+    file.read(buffer.data(), fileSize);
+
+    file.close();
+
+    return buffer;
+};
+
+// Renderer
 
 Renderer::Renderer(xwin::Window& window)
 {
     initializeAPI(window);
     initializeResources();
     setupCommands();
+    tStart = std::chrono::high_resolution_clock::now();
 }
 
 Renderer::~Renderer()
 {
     mDevice.waitIdle();
 
+    // Command Buffers
     mDevice.freeCommandBuffers(mCommandPool, mCommandBuffers.size(), mCommandBuffers.data());
+
+    // Command Pool
     mDevice.destroyCommandPool(mCommandPool);
 
     // Vertices
     mDevice.freeMemory(mVertices.memory);
     mDevice.destroyBuffer(mVertices.buffer);
+
+    // Index buffer
+    mDevice.freeMemory(mIndices.memory);
+    mDevice.destroyBuffer(mIndices.buffer);
 
     // Shader Module
     mDevice.destroyShaderModule(mVertModule);
@@ -119,16 +127,12 @@ Renderer::~Renderer()
     mDevice.destroyPipeline(mPipeline);
     mDevice.destroyPipelineLayout(mPipelineLayout);
 
+    // Descriptor Pool
     mDevice.destroyDescriptorPool(mDescriptorPool);
-
     for (vk::DescriptorSetLayout& dsl : mDescriptorSetLayouts)
     {
         mDevice.destroyDescriptorSetLayout(dsl);
     }
-
-    // Index buffer
-    mDevice.freeMemory(mIndices.memory);
-    mDevice.destroyBuffer(mIndices.buffer);
 
     // Uniform block object
     mDevice.freeMemory(mUniformDataVS.memory);
@@ -147,6 +151,41 @@ Renderer::~Renderer()
     }
 
     destroyAPI();
+}
+
+void Renderer::destroyAPI()
+{
+    // Device
+    mDevice.destroy();
+
+    // Surface
+    mInstance.destroySurfaceKHR(mSurface);
+
+    // Instance
+    mInstance.destroy();
+}
+
+void Renderer::destroyResources()
+{
+    // Depth Attachment
+    mDevice.freeMemory(mDepthImageMemory);
+    mDevice.destroyImage(mDepthImage);
+    if (!mSwapchainBuffers.empty())
+    {
+        mDevice.destroyImageView(mSwapchainBuffers[0].views[1]);
+    }
+
+    // Image Attachments
+    for (size_t i = 0; i < mSwapchainBuffers.size(); ++i)
+    {
+        mDevice.destroyImageView(mSwapchainBuffers[i].views[0]);
+        mDevice.destroyFramebuffer(mSwapchainBuffers[i].frameBuffer);
+    }
+}
+
+void Renderer::destroyCommands()
+{
+    mDevice.freeCommandBuffers(mCommandPool, mCommandBuffers);
 }
 
 void Renderer::initializeAPI(xwin::Window& window)
@@ -193,7 +232,7 @@ void Renderer::initializeAPI(xwin::Window& window)
 #elif VK_USE_PLATFORM_IOS_MVK
         VK_MVK_IOS_SURFACE_EXTENSION_NAME;
 #endif
-};
+    };
 
     std::vector<const char*> extensions = {};
 
@@ -316,6 +355,269 @@ void Renderer::initializeAPI(xwin::Window& window)
     createCommands();
 
     createSynchronization();
+}
+
+void Renderer::setupSwapchain(unsigned width, unsigned height)
+{
+    // Setup viewports, Vsync
+    mSurfaceSize = vk::Extent2D(width, height);
+    mRenderArea = vk::Rect2D(vk::Offset2D(), vk::Extent2D(width, height));
+    mViewport = vk::Viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0, 1.0f);
+
+    vk::SurfaceCapabilitiesKHR surfaceCapabilities = mPhysicalDevice.getSurfaceCapabilitiesKHR(mSurface);
+    std::vector<vk::PresentModeKHR> surfacePresentModes = mPhysicalDevice.getSurfacePresentModesKHR(mSurface);
+
+    // check the surface width/height.
+    if (!(surfaceCapabilities.currentExtent.width == -1 || surfaceCapabilities.currentExtent.height == -1)) {
+        mSurfaceSize = surfaceCapabilities.currentExtent;
+        mRenderArea = vk::Rect2D(vk::Offset2D(), mSurfaceSize);
+        mViewport = vk::Viewport(0.0f, 0.0f, static_cast<float>(mSurfaceSize.width), static_cast<float>(mSurfaceSize.height), 0, 1.0f);
+    }
+
+    vk::PresentModeKHR presentMode = vk::PresentModeKHR::eImmediate;
+
+    for (vk::PresentModeKHR& pm : surfacePresentModes) {
+        if (pm == vk::PresentModeKHR::eMailbox) {
+            presentMode = vk::PresentModeKHR::eMailbox;
+            break;
+        }
+    }
+
+    // Create Swapchain, Images, Frame Buffers
+
+    mDevice.waitIdle();
+    vk::SwapchainKHR oldSwapchain = mSwapchain;
+
+    mSwapchain = mDevice.createSwapchainKHR(
+        vk::SwapchainCreateInfoKHR(
+            vk::SwapchainCreateFlagsKHR(),
+            mSurface,
+            surfaceCapabilities.maxImageCount,
+            mSurfaceColorFormat,
+            mSurfaceColorSpace,
+            mSurfaceSize,
+            1,
+            vk::ImageUsageFlagBits::eColorAttachment,
+            vk::SharingMode::eExclusive,
+            1,
+            &mQueueFamilyIndex,
+            vk::SurfaceTransformFlagBitsKHR::eIdentity,
+            vk::CompositeAlphaFlagBitsKHR::eOpaque,
+            presentMode,
+            VK_TRUE,
+            oldSwapchain
+        )
+    );
+
+    if (oldSwapchain != nullptr)
+    {
+        mDevice.destroySwapchainKHR(oldSwapchain);
+    }
+
+    // Resize swapchain buffers for use later
+    mSwapchainBuffers.resize(surfaceCapabilities.maxImageCount);
+}
+
+void Renderer::setupFrameBuffer()
+{
+    // Create Depth Image Data
+    mDepthImage = mDevice.createImage(
+        vk::ImageCreateInfo(
+            vk::ImageCreateFlags(),
+            vk::ImageType::e2D,
+            mSurfaceDepthFormat,
+            vk::Extent3D(mSurfaceSize.width, mSurfaceSize.height, 1),
+            1U,
+            1U,
+            vk::SampleCountFlagBits::e1,
+            vk::ImageTiling::eOptimal,
+            vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eTransferSrc,
+            vk::SharingMode::eExclusive,
+            1,
+            &mQueueFamilyIndex,
+            vk::ImageLayout::eUndefined
+        )
+    );
+
+    vk::MemoryRequirements depthMemoryReq = mDevice.getImageMemoryRequirements(mDepthImage);
+
+    // Search through GPU memory properies to see if this can be device local.
+
+    mDepthImageMemory = mDevice.allocateMemory(
+        vk::MemoryAllocateInfo(
+            depthMemoryReq.size,
+            getMemoryTypeIndex(mPhysicalDevice, depthMemoryReq.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal)
+        )
+    );
+
+    mDevice.bindImageMemory(
+        mDepthImage,
+        mDepthImageMemory,
+        0
+    );
+
+    vk::ImageView depthImageView = mDevice.createImageView(
+        vk::ImageViewCreateInfo(
+            vk::ImageViewCreateFlags(),
+            mDepthImage,
+            vk::ImageViewType::e2D,
+            mSurfaceDepthFormat,
+            vk::ComponentMapping(),
+            vk::ImageSubresourceRange(
+                vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil,
+                0,
+                1,
+                0,
+                1
+            )
+        )
+    );
+
+    std::vector<vk::Image> swapchainImages = mDevice.getSwapchainImagesKHR(mSwapchain);
+
+    for (size_t i = 0; i < swapchainImages.size(); i++)
+    {
+        mSwapchainBuffers[i].image = swapchainImages[i];
+
+        // Color
+        mSwapchainBuffers[i].views[0] =
+            mDevice.createImageView(
+                vk::ImageViewCreateInfo(
+                    vk::ImageViewCreateFlags(),
+                    swapchainImages[i],
+                    vk::ImageViewType::e2D,
+                    mSurfaceColorFormat,
+                    vk::ComponentMapping(),
+                    vk::ImageSubresourceRange(
+                        vk::ImageAspectFlagBits::eColor,
+                        0,
+                        1,
+                        0,
+                        1
+                    )
+                )
+            );
+
+        // Depth
+        mSwapchainBuffers[i].views[1] = depthImageView;
+
+        mSwapchainBuffers[i].frameBuffer = mDevice.createFramebuffer(
+            vk::FramebufferCreateInfo(
+                vk::FramebufferCreateFlags(),
+                mRenderPass,
+                mSwapchainBuffers[i].views.size(),
+                mSwapchainBuffers[i].views.data(),
+                mSurfaceSize.width,
+                mSurfaceSize.height,
+                1
+            )
+        );
+    }
+}
+
+void Renderer::createRenderPass()
+{
+    std::vector<vk::AttachmentDescription> attachmentDescriptions =
+    {
+        vk::AttachmentDescription(
+            vk::AttachmentDescriptionFlags(),
+            mSurfaceColorFormat,
+            vk::SampleCountFlagBits::e1,
+            vk::AttachmentLoadOp::eClear,
+            vk::AttachmentStoreOp::eStore,
+            vk::AttachmentLoadOp::eDontCare,
+            vk::AttachmentStoreOp::eDontCare,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::ePresentSrcKHR
+        ),
+        vk::AttachmentDescription(
+            vk::AttachmentDescriptionFlags(),
+            mSurfaceDepthFormat,
+            vk::SampleCountFlagBits::e1,
+            vk::AttachmentLoadOp::eClear,
+            vk::AttachmentStoreOp::eDontCare,
+            vk::AttachmentLoadOp::eDontCare,
+            vk::AttachmentStoreOp::eDontCare,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eDepthStencilAttachmentOptimal
+        )
+    };
+
+    std::vector<vk::AttachmentReference> colorReferences =
+    {
+        vk::AttachmentReference(0, vk::ImageLayout::eColorAttachmentOptimal)
+    };
+
+    std::vector<vk::AttachmentReference> depthReferences = {
+        vk::AttachmentReference(1, vk::ImageLayout::eDepthStencilAttachmentOptimal)
+    };
+
+    std::vector<vk::SubpassDescription> subpasses =
+    {
+        vk::SubpassDescription(
+            vk::SubpassDescriptionFlags(),
+            vk::PipelineBindPoint::eGraphics,
+            0,
+            nullptr,
+            colorReferences.size(),
+            colorReferences.data(),
+            nullptr,
+            depthReferences.data(),
+            0,
+            nullptr
+        )
+    };
+
+    std::vector<vk::SubpassDependency> dependencies =
+    {
+        vk::SubpassDependency(
+            ~0U,
+            0,
+            vk::PipelineStageFlagBits::eBottomOfPipe,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            vk::AccessFlagBits::eMemoryRead,
+            vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite,
+            vk::DependencyFlagBits::eByRegion
+        ),
+        vk::SubpassDependency(
+            0,
+            ~0U,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            vk::PipelineStageFlagBits::eBottomOfPipe,
+            vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite,
+            vk::AccessFlagBits::eMemoryRead,
+            vk::DependencyFlagBits::eByRegion
+        )
+    };
+
+    mRenderPass = mDevice.createRenderPass(
+        vk::RenderPassCreateInfo(
+            vk::RenderPassCreateFlags(),
+            attachmentDescriptions.size(),
+            attachmentDescriptions.data(),
+            subpasses.size(),
+            subpasses.data(),
+            dependencies.size(),
+            dependencies.data()
+        )
+    );
+}
+
+void Renderer::createSynchronization()
+{
+    // Semaphore used to ensures that image presentation is complete before starting to submit again
+    mPresentCompleteSemaphore = mDevice.createSemaphore(vk::SemaphoreCreateInfo());
+
+    // Semaphore used to ensures that all commands submitted have been finished before submitting the image to the queue
+    mRenderCompleteSemaphore = mDevice.createSemaphore(vk::SemaphoreCreateInfo());
+
+    // Fence for command buffer completion
+    mWaitFences.resize(mSwapchainBuffers.size());
+
+    for (size_t i = 0; i < mWaitFences.size(); i++)
+    {
+        mWaitFences[i] = mDevice.createFence(vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled));
+    }
 }
 
 void Renderer::initializeResources()
@@ -655,10 +957,7 @@ void Renderer::initializeResources()
 
     uboVS.viewMatrix = Matrix4::translation(Vector3(0.0f, 0.0f, zoom));
 
-    uboVS.modelMatrix = Matrix4();
-    uboVS.modelMatrix = uboVS.modelMatrix.rotation(rotation.getX(), Vector3(1.0f, 0.0f, 0.0f));
-    uboVS.modelMatrix = uboVS.modelMatrix.rotation(rotation.getY(), Vector3(0.0f, -1.0f, 0.0f));
-    uboVS.modelMatrix = uboVS.modelMatrix.rotation(rotation.getZ(), Vector3(0.0f, 0.0f, 1.0f));
+    uboVS.modelMatrix = Matrix4::identity();
 
     // Map uniform buffer and update it
     void *pData;
@@ -892,18 +1191,16 @@ void Renderer::setupCommands()
     }
 }
 
-void Renderer::destroyCommands()
-{
-    mDevice.freeCommandBuffers(mCommandPool, mCommandBuffers);
-}
-
 void Renderer::render()
 {
-    // Update Uniforms
-    mElapsedTime += 0.0001f;
-    float zoom = -2.5f;
-    Vector3 rotation = Vector3(0.0f, mElapsedTime, 0.0f);
+    // Elapsed Time
+    tEnd = std::chrono::high_resolution_clock::now();
+    mElapsedTime += 0.001f * std::chrono::duration<float, std::milli>(tEnd - tStart).count();
+    mElapsedTime = fmodf(mElapsedTime, 6.283185307179586f);
+    tStart = std::chrono::high_resolution_clock::now();
 
+    // Update Uniforms
+    Vector3 rotation = Vector3(0.0f, mElapsedTime, 0.0f);
     uboVS.modelMatrix = Matrix4::rotationY(mElapsedTime);
 
     void *pData;
@@ -957,303 +1254,5 @@ void Renderer::resize(unsigned width, unsigned height)
     uboVS.projectionMatrix = Matrix4::perspective(45.0f, (float)mViewport.width / (float)mViewport.height, 0.01f, 1024.0f);
 
     mDevice.waitIdle();
-}
-
-void Renderer::setupSwapchain(unsigned width, unsigned height)
-{
-    // Setup viewports, Vsync
-    mSurfaceSize = vk::Extent2D(width, height);
-    mRenderArea = vk::Rect2D(vk::Offset2D(), vk::Extent2D(width, height));
-    mViewport = vk::Viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0, 1.0f);
-
-    vk::SurfaceCapabilitiesKHR surfaceCapabilities = mPhysicalDevice.getSurfaceCapabilitiesKHR(mSurface);
-    std::vector<vk::PresentModeKHR> surfacePresentModes = mPhysicalDevice.getSurfacePresentModesKHR(mSurface);
-
-    // check the surface width/height.
-    if (!(surfaceCapabilities.currentExtent.width == -1 || surfaceCapabilities.currentExtent.height == -1)) {
-        mSurfaceSize = surfaceCapabilities.currentExtent;
-        mRenderArea = vk::Rect2D(vk::Offset2D(), mSurfaceSize);
-        mViewport = vk::Viewport(0.0f, 0.0f, static_cast<float>(mSurfaceSize.width), static_cast<float>(mSurfaceSize.height), 0, 1.0f);
-    }
-
-    vk::PresentModeKHR presentMode = vk::PresentModeKHR::eImmediate;
-
-    for (vk::PresentModeKHR& pm : surfacePresentModes) {
-        if (pm == vk::PresentModeKHR::eMailbox) {
-            presentMode = vk::PresentModeKHR::eMailbox;
-            break;
-        }
-    }
-
-    // Create Swapchain, Images, Frame Buffers
-
-    mDevice.waitIdle();
-    vk::SwapchainKHR oldSwapchain = mSwapchain;
-
-    mSwapchain = mDevice.createSwapchainKHR(
-        vk::SwapchainCreateInfoKHR(
-            vk::SwapchainCreateFlagsKHR(),
-            mSurface,
-            surfaceCapabilities.maxImageCount,
-            mSurfaceColorFormat,
-            mSurfaceColorSpace,
-            mSurfaceSize,
-            1,
-            vk::ImageUsageFlagBits::eColorAttachment,
-            vk::SharingMode::eExclusive,
-            1,
-            &mQueueFamilyIndex,
-            vk::SurfaceTransformFlagBitsKHR::eIdentity,
-            vk::CompositeAlphaFlagBitsKHR::eOpaque,
-            presentMode,
-            VK_TRUE,
-            oldSwapchain
-        )
-    );
-
-    if (oldSwapchain != nullptr)
-    {
-        mDevice.destroySwapchainKHR(oldSwapchain);
-    }
-
-    // Resize swapchain buffers for use later
-    mSwapchainBuffers.resize(surfaceCapabilities.maxImageCount);
-}
-
-
-void Renderer::destroyAPI()
-{
-    // Device
-    mDevice.destroy();
-
-    // Surface
-    mInstance.destroySurfaceKHR(mSurface);
-
-    // Instance
-    mInstance.destroy();
-}
-
-void Renderer::destroyResources()
-{
-    // Depth Attachment
-    mDevice.freeMemory(mDepthImageMemory);
-    mDevice.destroyImage(mDepthImage);
-    if (!mSwapchainBuffers.empty())
-    {
-        mDevice.destroyImageView(mSwapchainBuffers[0].views[1]);
-    }
-
-    // Image Attachments
-    for (size_t i = 0; i < mSwapchainBuffers.size(); ++i)
-    {
-        mDevice.destroyImageView(mSwapchainBuffers[i].views[0]);
-        mDevice.destroyFramebuffer(mSwapchainBuffers[i].frameBuffer);
-    }
-}
-
-void Renderer::setupFrameBuffer()
-{
-    // Create Depth Image Data
-    mDepthImage = mDevice.createImage(
-        vk::ImageCreateInfo(
-            vk::ImageCreateFlags(),
-            vk::ImageType::e2D,
-            mSurfaceDepthFormat,
-            vk::Extent3D(mSurfaceSize.width, mSurfaceSize.height, 1),
-            1U,
-            1U,
-            vk::SampleCountFlagBits::e1,
-            vk::ImageTiling::eOptimal,
-            vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eTransferSrc,
-            vk::SharingMode::eExclusive,
-            1,
-            &mQueueFamilyIndex,
-            vk::ImageLayout::eUndefined
-        )
-    );
-
-    vk::MemoryRequirements depthMemoryReq = mDevice.getImageMemoryRequirements(mDepthImage);
-
-    // Search through GPU memory properies to see if this can be device local.
-
-    mDepthImageMemory = mDevice.allocateMemory(
-        vk::MemoryAllocateInfo(
-            depthMemoryReq.size,
-            getMemoryTypeIndex(mPhysicalDevice, depthMemoryReq.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal)
-        )
-    );
-
-    mDevice.bindImageMemory(
-        mDepthImage,
-        mDepthImageMemory,
-        0
-    );
-
-    vk::ImageView depthImageView = mDevice.createImageView(
-        vk::ImageViewCreateInfo(
-            vk::ImageViewCreateFlags(),
-            mDepthImage,
-            vk::ImageViewType::e2D,
-            mSurfaceDepthFormat,
-            vk::ComponentMapping(),
-            vk::ImageSubresourceRange(
-                vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil,
-                0,
-                1,
-                0,
-                1
-            )
-        )
-    );
-
-    std::vector<vk::Image> swapchainImages = mDevice.getSwapchainImagesKHR(mSwapchain);
-
-    for (size_t i = 0; i < swapchainImages.size(); i++)
-    {
-        mSwapchainBuffers[i].image = swapchainImages[i];
-
-        // Color
-        mSwapchainBuffers[i].views[0] =
-            mDevice.createImageView(
-                vk::ImageViewCreateInfo(
-                    vk::ImageViewCreateFlags(),
-                    swapchainImages[i],
-                    vk::ImageViewType::e2D,
-                    mSurfaceColorFormat,
-                    vk::ComponentMapping(),
-                    vk::ImageSubresourceRange(
-                        vk::ImageAspectFlagBits::eColor,
-                        0,
-                        1,
-                        0,
-                        1
-                    )
-                )
-            );
-
-        // Depth
-        mSwapchainBuffers[i].views[1] = depthImageView;
-
-        mSwapchainBuffers[i].frameBuffer = mDevice.createFramebuffer(
-            vk::FramebufferCreateInfo(
-                vk::FramebufferCreateFlags(),
-                mRenderPass,
-                mSwapchainBuffers[i].views.size(),
-                mSwapchainBuffers[i].views.data(),
-                mSurfaceSize.width,
-                mSurfaceSize.height,
-                1
-            )
-        );
-    }
-}
-
-void Renderer::createRenderPass()
-{
-    std::vector<vk::AttachmentDescription> attachmentDescriptions =
-    {
-        vk::AttachmentDescription(
-            vk::AttachmentDescriptionFlags(),
-            mSurfaceColorFormat,
-            vk::SampleCountFlagBits::e1,
-            vk::AttachmentLoadOp::eClear,
-            vk::AttachmentStoreOp::eStore,
-            vk::AttachmentLoadOp::eDontCare,
-            vk::AttachmentStoreOp::eDontCare,
-            vk::ImageLayout::eUndefined,
-            vk::ImageLayout::ePresentSrcKHR
-        ),
-        vk::AttachmentDescription(
-            vk::AttachmentDescriptionFlags(),
-            mSurfaceDepthFormat,
-            vk::SampleCountFlagBits::e1,
-            vk::AttachmentLoadOp::eClear,
-            vk::AttachmentStoreOp::eDontCare,
-            vk::AttachmentLoadOp::eDontCare,
-            vk::AttachmentStoreOp::eDontCare,
-            vk::ImageLayout::eUndefined,
-            vk::ImageLayout::eDepthStencilAttachmentOptimal
-        )
-    };
-
-    std::vector<vk::AttachmentReference> colorReferences =
-    {
-        vk::AttachmentReference(0, vk::ImageLayout::eColorAttachmentOptimal)
-    };
-
-    std::vector<vk::AttachmentReference> depthReferences = {
-        vk::AttachmentReference(1, vk::ImageLayout::eDepthStencilAttachmentOptimal)
-    };
-
-    std::vector<vk::SubpassDescription> subpasses =
-    {
-        vk::SubpassDescription(
-            vk::SubpassDescriptionFlags(),
-            vk::PipelineBindPoint::eGraphics,
-            0,
-            nullptr,
-            colorReferences.size(),
-            colorReferences.data(),
-            nullptr,
-            depthReferences.data(),
-            0,
-            nullptr
-        )
-    };
-
-    std::vector<vk::SubpassDependency> dependencies =
-    {
-        vk::SubpassDependency(
-            ~0U,
-            0,
-            vk::PipelineStageFlagBits::eBottomOfPipe,
-            vk::PipelineStageFlagBits::eColorAttachmentOutput,
-            vk::AccessFlagBits::eMemoryRead,
-            vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite,
-            vk::DependencyFlagBits::eByRegion
-        ),
-        vk::SubpassDependency(
-            0,
-            ~0U,
-            vk::PipelineStageFlagBits::eColorAttachmentOutput,
-            vk::PipelineStageFlagBits::eBottomOfPipe,
-            vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite,
-            vk::AccessFlagBits::eMemoryRead,
-            vk::DependencyFlagBits::eByRegion
-        )
-    };
-
-    mRenderPass = mDevice.createRenderPass(
-        vk::RenderPassCreateInfo(
-            vk::RenderPassCreateFlags(),
-            attachmentDescriptions.size(),
-            attachmentDescriptions.data(),
-            subpasses.size(),
-            subpasses.data(),
-            dependencies.size(),
-            dependencies.data()
-        )
-    );
-}
-
-void Renderer::createSynchronization()
-{
-    /**
-    * Synchronization
-    */
-
-    // Semaphore used to ensures that image presentation is complete before starting to submit again
-    mPresentCompleteSemaphore = mDevice.createSemaphore(vk::SemaphoreCreateInfo());
-
-    // Semaphore used to ensures that all commands submitted have been finished before submitting the image to the queue
-    mRenderCompleteSemaphore = mDevice.createSemaphore(vk::SemaphoreCreateInfo());
-
-    // Fence for command buffer completion
-    mWaitFences.resize(mSwapchainBuffers.size());
-
-    for (size_t i = 0; i < mWaitFences.size(); i++)
-    {
-        mWaitFences[i] = mDevice.createFence(vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled));
-    }
 }
 

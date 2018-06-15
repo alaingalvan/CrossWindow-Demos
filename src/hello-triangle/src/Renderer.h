@@ -2,8 +2,11 @@
 
 #include "CrossWindow/CrossWindow.h"
 #include "CrossWindow/Graphics.h"
-#include <vector>
 #include "vectormath.hpp"
+
+#include <vector>
+#include <chrono>
+
 
 #if defined(XGFX_VULKAN)
 #include <vulkan/vulkan.hpp>
@@ -81,6 +84,7 @@ protected:
 
   uint32_t mIndexBufferData[3] = { 0, 1, 2 };
 
+  std::chrono::time_point<std::chrono::steady_clock> tStart, tEnd;
   float mElapsedTime = 0.0f;
 
 #if defined(XGFX_VULKAN)
