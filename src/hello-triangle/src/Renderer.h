@@ -6,20 +6,12 @@
 
 #include <vector>
 #include <chrono>
-
-
-#if defined(XGFX_VULKAN)
-#include <vulkan/vulkan.hpp>
-#elif defined(XGFX_DIRECTX12)
-
-#elif defined(XGFX_OPENGL)
-
-#elif defined(XGFX_METAL)
-
-#endif
+#include <algorithm>
 
 #if defined(XWIN_WIN32)
 #include <direct.h>
+#else
+#include <unistd.h>
 #endif
 
 class Renderer

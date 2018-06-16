@@ -60,9 +60,14 @@ uint32_t getMemoryTypeIndex(vk::PhysicalDevice& physicalDevice, uint32_t typeBit
 
 std::vector<char> readFile(const std::string& filename) {
     std::string path = filename;
+    char pBuf[1024];
 #ifdef XWIN_WIN32
-    char pBuf[256];
-    _getcwd(pBuf, 256);
+
+    _getcwd(pBuf, 1024);
+    path = pBuf;
+    path += "\\";
+#else
+    getcwd(pBuf, 1024);
     path = pBuf;
     path += "\\";
 #endif
@@ -84,6 +89,11 @@ std::vector<char> readFile(const std::string& filename) {
 
     return buffer;
 };
+
+template <typename T> T clamp(const T& value, const T& low, const T& high)
+{
+    return value < low ? low : (value > high ? high : value);
+}
 
 // Renderer
 
@@ -361,18 +371,14 @@ void Renderer::initializeAPI(xwin::Window& window)
 void Renderer::setupSwapchain(unsigned width, unsigned height)
 {
     // Setup viewports, Vsync
-    mSurfaceSize = vk::Extent2D(width, height);
-    mRenderArea = vk::Rect2D(vk::Offset2D(), vk::Extent2D(width, height));
-    mViewport = vk::Viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0, 1.0f);
+    vk::Extent2D swapchainSize = vk::Extent2D(width, height);
 
+    // All framebuffers / attachments will be the same size as the surface
     vk::SurfaceCapabilitiesKHR surfaceCapabilities = mPhysicalDevice.getSurfaceCapabilitiesKHR(mSurface);
-    
-
-    // check the surface width/height.
     if (!(surfaceCapabilities.currentExtent.width == -1 || surfaceCapabilities.currentExtent.height == -1)) {
-        mSurfaceSize = surfaceCapabilities.currentExtent;
-        mRenderArea = vk::Rect2D(vk::Offset2D(), mSurfaceSize);
-        mViewport = vk::Viewport(0.0f, 0.0f, static_cast<float>(mSurfaceSize.width), static_cast<float>(mSurfaceSize.height), 0, 1.0f);
+        swapchainSize = surfaceCapabilities.currentExtent;
+        mRenderArea = vk::Rect2D(vk::Offset2D(), swapchainSize);
+        mViewport = vk::Viewport(0.0f, 0.0f, static_cast<float>(swapchainSize.width), static_cast<float>(swapchainSize.height), 0, 1.0f);
     }
 
     // VSync
@@ -391,6 +397,7 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
     mDevice.waitIdle();
     vk::SwapchainKHR oldSwapchain = mSwapchain;
 
+    
     mSwapchain = mDevice.createSwapchainKHR(
         vk::SwapchainCreateInfoKHR(
             vk::SwapchainCreateFlagsKHR(),
@@ -398,7 +405,7 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
             surfaceCapabilities.maxImageCount,
             mSurfaceColorFormat,
             mSurfaceColorSpace,
-            mSurfaceSize,
+            swapchainSize,
             1,
             vk::ImageUsageFlagBits::eColorAttachment,
             vk::SharingMode::eExclusive,
@@ -411,6 +418,11 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
             oldSwapchain
         )
     );
+
+    mSurfaceSize = vk::Extent2D(clamp(swapchainSize.width, 1U, 8192U), clamp(swapchainSize.height, 1U, 8192U));
+    mRenderArea = vk::Rect2D(vk::Offset2D(), mSurfaceSize);
+    mViewport = vk::Viewport(0.0f, 0.0f, static_cast<float>(mSurfaceSize.width), static_cast<float>(mSurfaceSize.height), 0, 1.0f);
+
 
     // Destroy previous swapchain
     if (oldSwapchain != vk::SwapchainKHR(nullptr))
@@ -511,8 +523,7 @@ void Renderer::setupFrameBuffer()
                 mRenderPass,
                 static_cast<uint32_t>(mSwapchainBuffers[i].views.size()),
                 mSwapchainBuffers[i].views.data(),
-                mSurfaceSize.width,
-                mSurfaceSize.height,
+                mSurfaceSize.width, mSurfaceSize.height,
                 1
             )
         );
