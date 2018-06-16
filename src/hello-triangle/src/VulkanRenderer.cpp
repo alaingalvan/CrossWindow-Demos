@@ -1,6 +1,4 @@
-﻿#define XGFX_IMPL
-
-#include "Renderer.h"
+﻿#include "Renderer.h"
 #include <fstream>
 
 
@@ -102,7 +100,7 @@ Renderer::~Renderer()
     mDevice.waitIdle();
 
     // Command Buffers
-    mDevice.freeCommandBuffers(mCommandPool, mCommandBuffers.size(), mCommandBuffers.data());
+    mDevice.freeCommandBuffers(mCommandPool, static_cast<uint32_t>(mCommandBuffers.size()), mCommandBuffers.data());
 
     // Command Pool
     mDevice.destroyCommandPool(mCommandPool);
@@ -351,6 +349,7 @@ void Renderer::initializeAPI(xwin::Window& window)
     //Swapchain
     const xwin::WindowDesc wdesc = window.getDesc();
     setupSwapchain(wdesc.width, wdesc.height);
+    mCurrentBuffer = 0;
 
     // Command Buffers
     createCommands();
@@ -414,7 +413,7 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
     );
 
     // Destroy previous swapchain
-    if (oldSwapchain != nullptr)
+    if (oldSwapchain != vk::SwapchainKHR(nullptr))
     {
         mDevice.destroySwapchainKHR(oldSwapchain);
     }
@@ -510,7 +509,7 @@ void Renderer::setupFrameBuffer()
             vk::FramebufferCreateInfo(
                 vk::FramebufferCreateFlags(),
                 mRenderPass,
-                mSwapchainBuffers[i].views.size(),
+                static_cast<uint32_t>(mSwapchainBuffers[i].views.size()),
                 mSwapchainBuffers[i].views.data(),
                 mSurfaceSize.width,
                 mSurfaceSize.height,
@@ -564,7 +563,7 @@ void Renderer::createRenderPass()
             vk::PipelineBindPoint::eGraphics,
             0,
             nullptr,
-            colorReferences.size(),
+            static_cast<uint32_t>(colorReferences.size()),
             colorReferences.data(),
             nullptr,
             depthReferences.data(),
@@ -598,11 +597,11 @@ void Renderer::createRenderPass()
     mRenderPass = mDevice.createRenderPass(
         vk::RenderPassCreateInfo(
             vk::RenderPassCreateFlags(),
-            attachmentDescriptions.size(),
+            static_cast<uint32_t>(attachmentDescriptions.size()),
             attachmentDescriptions.data(),
-            subpasses.size(),
+            static_cast<uint32_t>(subpasses.size()),
             subpasses.data(),
-            dependencies.size(),
+            static_cast<uint32_t>(dependencies.size()),
             dependencies.data()
         )
     );
@@ -644,7 +643,7 @@ void Renderer::initializeResources()
         vk::DescriptorPoolCreateInfo(
             vk::DescriptorPoolCreateFlags(),
             1,
-            descriptorPoolSizes.size(),
+            static_cast<uint32_t>(descriptorPoolSizes.size()),
             descriptorPoolSizes.data()
         )
     );
@@ -666,7 +665,7 @@ void Renderer::initializeResources()
         mDevice.createDescriptorSetLayout(
             vk::DescriptorSetLayoutCreateInfo(
                 vk::DescriptorSetLayoutCreateFlags(),
-                descriptorSetLayoutBindings.size(),
+                static_cast<uint32_t>(descriptorSetLayoutBindings.size()),
                 descriptorSetLayoutBindings.data()
             )
         )
@@ -675,7 +674,7 @@ void Renderer::initializeResources()
     mDescriptorSets = mDevice.allocateDescriptorSets(
         vk::DescriptorSetAllocateInfo(
             mDescriptorPool,
-            mDescriptorSetLayouts.size(),
+            static_cast<uint32_t>(mDescriptorSetLayouts.size()),
             mDescriptorSetLayouts.data()
         )
     );
@@ -683,7 +682,7 @@ void Renderer::initializeResources()
     mPipelineLayout = mDevice.createPipelineLayout(
         vk::PipelineLayoutCreateInfo(
             vk::PipelineLayoutCreateFlags(),
-            mDescriptorSetLayouts.size(),
+            static_cast<uint32_t>(mDescriptorSetLayouts.size()),
             mDescriptorSetLayouts.data(),
             0,
             nullptr
@@ -955,7 +954,7 @@ void Renderer::initializeResources()
 
     // Update Uniforms
     float zoom = -2.5f;
-    auto rotation = Vector3(0.0f, mElapsedTime, 0.0f);
+    auto rotation = Vector3(0.0f, 0.0f, 0.0f);
 
     // Update matrices
     uboVS.projectionMatrix = Matrix4::perspective(45.0f, (float)mViewport.width / (float)mViewport.height, 0.01f, 1024.0f);
@@ -1101,7 +1100,7 @@ void Renderer::initializeResources()
         vk::PipelineColorBlendStateCreateFlags(),
         0,
         vk::LogicOp::eClear,
-        colorBlendAttachments.size(),
+        static_cast<uint32_t>(colorBlendAttachments.size()),
         colorBlendAttachments.data()
     );
 
@@ -1113,7 +1112,7 @@ void Renderer::initializeResources()
 
     vk::PipelineDynamicStateCreateInfo pdy(
         vk::PipelineDynamicStateCreateFlags(),
-        dynamicStates.size(),
+        static_cast<uint32_t>(dynamicStates.size()),
         dynamicStates.data()
     );
 
@@ -1121,7 +1120,7 @@ void Renderer::initializeResources()
         mPipelineCache,
         vk::GraphicsPipelineCreateInfo(
             vk::PipelineCreateFlags(),
-            pipelineShaderStages.size(),
+            static_cast<uint32_t>(pipelineShaderStages.size()),
             pipelineShaderStages.data(),
             &pvi,
             &pia,
@@ -1145,7 +1144,8 @@ void Renderer::createCommands()
         vk::CommandBufferAllocateInfo(
             mCommandPool,
             vk::CommandBufferLevel::ePrimary,
-            mSwapchainBuffers.size())
+            static_cast<uint32_t>(mSwapchainBuffers.size())
+        )
     );
 }
 
@@ -1168,7 +1168,7 @@ void Renderer::setupCommands()
                 mRenderPass,
                 mSwapchainBuffers[i].frameBuffer,
                 mRenderArea,
-                clearValues.size(),
+                static_cast<uint32_t>(clearValues.size()),
                 clearValues.data()),
             vk::SubpassContents::eInline);
 
@@ -1198,13 +1198,32 @@ void Renderer::setupCommands()
 
 void Renderer::render()
 {
-    // Elapsed Time
+    // Framelimit set to 60 fps
     tEnd = std::chrono::high_resolution_clock::now();
-    mElapsedTime += 0.001f * std::chrono::duration<float, std::milli>(tEnd - tStart).count();
-    mElapsedTime = fmodf(mElapsedTime, 6.283185307179586f);
+    float time = std::chrono::duration<float, std::milli>(tEnd - tStart).count();
+    if (time < (1000.0f / 60.0f))
+    { return; }
     tStart = std::chrono::high_resolution_clock::now();
 
+    // Swap backbuffers
+    vk::Result result;
+    do {
+        result = mDevice.acquireNextImageKHR(mSwapchain, UINT64_MAX, mPresentCompleteSemaphore, nullptr, &mCurrentBuffer);
+        if (result == vk::Result::eErrorOutOfDateKHR) {
+            // demo->swapchain is out of date (e.g. the window was resized) and
+            // must be recreated:
+            setupSwapchain(mSurfaceSize.width, mSurfaceSize.height);
+        }
+        else if (result == vk::Result::eSuboptimalKHR) {
+            // swapchain is not as optimal as it could be, but the platform's
+            // presentation engine will still present the image correctly.
+            break;
+        }
+    } while (result != vk::Result::eSuccess);
+
     // Update Uniforms
+    mElapsedTime += 0.001f * time;
+    mElapsedTime = fmodf(mElapsedTime, 6.283185307179586f);
     Vector3 rotation = Vector3(0.0f, mElapsedTime, 0.0f);
     uboVS.modelMatrix = Matrix4::rotationY(mElapsedTime);
 
@@ -1213,15 +1232,12 @@ void Renderer::render()
     memcpy(pData, &uboVS, sizeof(uboVS));
     mDevice.unmapMemory(mUniformDataVS.memory);
 
-    // Swap backbuffers
-    mDevice.acquireNextImageKHR(mSwapchain, ULLONG_MAX, mPresentCompleteSemaphore, nullptr, &mCurrentBuffer);
+    // Wait for Fences
     mDevice.waitForFences(1, &mWaitFences[mCurrentBuffer], VK_TRUE, UINT64_MAX);
     mDevice.resetFences(1, &mWaitFences[mCurrentBuffer]);
 
     vk::SubmitInfo submitInfo;
-
     vk::PipelineStageFlags waitDstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-
     submitInfo
         .setWaitSemaphoreCount(1)
         .setPWaitSemaphores(&mPresentCompleteSemaphore)
@@ -1230,10 +1246,9 @@ void Renderer::render()
         .setPCommandBuffers(&mCommandBuffers[mCurrentBuffer])
         .setSignalSemaphoreCount(1)
         .setPSignalSemaphores(&mRenderCompleteSemaphore);
-
-    mQueue.submit(1, &submitInfo, mWaitFences[mCurrentBuffer]);
-
-    mQueue.presentKHR(
+    result = mQueue.submit(1, &submitInfo, mWaitFences[mCurrentBuffer]);
+    
+    result = mQueue.presentKHR(
         vk::PresentInfoKHR(
             1,
             &mRenderCompleteSemaphore,
@@ -1243,6 +1258,16 @@ void Renderer::render()
             nullptr
         )
     );
+
+    if (result == vk::Result::eErrorOutOfDateKHR) {
+        // demo->swapchain is out of date (e.g. the window was resized) and
+        // must be recreated:
+        setupSwapchain(mSurfaceSize.width, mSurfaceSize.height);
+    }
+    else if (result == vk::Result::eSuboptimalKHR) {
+        // swapchain is not as optimal as it could be, but the platform's
+        // presentation engine will still present the image correctly.
+    }
 }
 
 void Renderer::resize(unsigned width, unsigned height)
