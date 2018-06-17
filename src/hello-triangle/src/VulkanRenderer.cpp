@@ -277,6 +277,14 @@ void Renderer::initializeAPI(xwin::Window& window)
     // Queue Family
     mQueueFamilyIndex = getQueueIndex(mPhysicalDevice, vk::QueueFlagBits::eGraphics);
 
+    // Surface
+    mSurface = xgfx::getSurface(&window, mInstance);
+    if (!mPhysicalDevice.getSurfaceSupportKHR(mQueueFamilyIndex, mSurface))
+    {
+        // Check if queueFamily supports this surface
+        return;
+    }
+
     // Queue Creation
     vk::DeviceQueueCreateInfo qcinfo;
     qcinfo.setQueueFamilyIndex(mQueueFamilyIndex);
@@ -303,6 +311,8 @@ void Renderer::initializeAPI(xwin::Window& window)
     dinfo.setEnabledExtensionCount(static_cast<uint32_t>(deviceExtensions.size()));
     mDevice = mPhysicalDevice.createDevice(dinfo);
 
+
+
     // Queue
     mQueue = mDevice.getQueue(mQueueFamilyIndex, 0);
 
@@ -313,14 +323,6 @@ void Renderer::initializeAPI(xwin::Window& window)
             mQueueFamilyIndex
         )
     );
-
-    // Surface
-    mSurface = xgfx::getSurface(&window, mInstance);
-    if (!mPhysicalDevice.getSurfaceSupportKHR(mQueueFamilyIndex, mSurface))
-    {
-        // Failed to create surface
-        return;
-    }
 
     // Surface Attachement Formats
 
@@ -1220,15 +1222,13 @@ void Renderer::render()
     vk::Result result;
     do {
         result = mDevice.acquireNextImageKHR(mSwapchain, UINT64_MAX, mPresentCompleteSemaphore, nullptr, &mCurrentBuffer);
-        if (result == vk::Result::eErrorOutOfDateKHR) {
-            // demo->swapchain is out of date (e.g. the window was resized) and
-            // must be recreated:
+        if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR) {
             setupSwapchain(mSurfaceSize.width, mSurfaceSize.height);
         }
-        else if (result == vk::Result::eSuboptimalKHR) {
-            // swapchain is not as optimal as it could be, but the platform's
-            // presentation engine will still present the image correctly.
-            break;
+        if (result == vk::Result::eErrorDeviceLost)
+        {
+            // driver lost
+            return;
         }
     } while (result != vk::Result::eSuccess);
 
@@ -1259,6 +1259,11 @@ void Renderer::render()
         .setPSignalSemaphores(&mRenderCompleteSemaphore);
     result = mQueue.submit(1, &submitInfo, mWaitFences[mCurrentBuffer]);
     
+    if (result == vk::Result::eErrorDeviceLost)
+    {
+        return;
+    }
+
     result = mQueue.presentKHR(
         vk::PresentInfoKHR(
             1,
@@ -1270,14 +1275,8 @@ void Renderer::render()
         )
     );
 
-    if (result == vk::Result::eErrorOutOfDateKHR) {
-        // demo->swapchain is out of date (e.g. the window was resized) and
-        // must be recreated:
+    if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR) {
         setupSwapchain(mSurfaceSize.width, mSurfaceSize.height);
-    }
-    else if (result == vk::Result::eSuboptimalKHR) {
-        // swapchain is not as optimal as it could be, but the platform's
-        // presentation engine will still present the image correctly.
     }
 }
 
