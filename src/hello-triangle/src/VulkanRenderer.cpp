@@ -153,7 +153,7 @@ Renderer::~Renderer()
     // Sync
     mDevice.destroySemaphore(mPresentCompleteSemaphore);
     mDevice.destroySemaphore(mRenderCompleteSemaphore);
-    for (const vk::Fence& f : mWaitFences)
+    for (vk::Fence& f : mWaitFences)
     {
         mDevice.destroyFence(f);
     }
@@ -399,12 +399,15 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
     mDevice.waitIdle();
     vk::SwapchainKHR oldSwapchain = mSwapchain;
 
+    // Some devices can support more than 2 buffers, but during my tests they would crash on fullscreen ~ ag
+    // Tested on an NVIDIA 1080 and 165 Hz 2K display
+    uint32_t backbufferCount = clamp(surfaceCapabilities.maxImageCount, 1U, 2U);
     
     mSwapchain = mDevice.createSwapchainKHR(
         vk::SwapchainCreateInfoKHR(
             vk::SwapchainCreateFlagsKHR(),
             mSurface,
-            surfaceCapabilities.maxImageCount,
+            backbufferCount,
             mSurfaceColorFormat,
             mSurfaceColorSpace,
             swapchainSize,
@@ -433,7 +436,7 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
     }
 
     // Resize swapchain buffers for use later
-    mSwapchainBuffers.resize(surfaceCapabilities.maxImageCount);
+    mSwapchainBuffers.resize(backbufferCount);
 }
 
 void Renderer::setupFrameBuffer()
@@ -1214,7 +1217,7 @@ void Renderer::render()
     // Framelimit set to 60 fps
     tEnd = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration<float, std::milli>(tEnd - tStart).count();
-    if (time < (1000.0f / 60.0f))
+    if (time < (1000.0f / 1000.0f))
     { return; }
     tStart = std::chrono::high_resolution_clock::now();
 
@@ -1289,6 +1292,7 @@ void Renderer::resize(unsigned width, unsigned height)
     destroyCommands();
     createCommands();
     setupCommands();
+    mDevice.waitIdle();
 
     // Uniforms
     uboVS.projectionMatrix = Matrix4::perspective(45.0f, (float)mViewport.width / (float)mViewport.height, 0.01f, 1024.0f);
