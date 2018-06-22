@@ -21,27 +21,6 @@ public:
 
   ~Renderer();
 
-  // Initialize your Graphics API
-  void initializeAPI(xwin::Window& window);
-
-  // Destroy any Graphics API data structures used in this example
-  void destroyAPI();
-
-  // Initialize any resources used in this example
-  void initializeResources();
-
-  // Destroy any resources used in this example
-  void destroyResources();
-
-  // Create graphics API specific data structures to send commands to the GPU
-  void createCommands();
-
-  // Set up commands used when rendering frame by this app
-  void setupCommands();
-
-  // Destroy all commands
-  void destroyCommands();
-
   // Render onto the render target
   void render();
 
@@ -50,8 +29,31 @@ public:
 
 protected:
 
+    // Initialize your Graphics API
+    void initializeAPI(xwin::Window& window);
+
+    // Destroy any Graphics API data structures used in this example
+    void destroyAPI();
+
+    // Initialize any resources such as VBOs, IBOs, used in this example
+    void initializeResources();
+
+    // Destroy any resources used in this example
+    void destroyResources();
+
+    // Create graphics API specific data structures to send commands to the GPU
+    void createCommands();
+
+    // Set up commands used when rendering frame by this app
+    void setupCommands();
+
+    // Destroy all commands
+    void destroyCommands();
+
     // Set up the FrameBuffer
-    void setupFrameBuffer();
+    void initFrameBuffer();
+
+    void destroyFrameBuffer();
 
     // Set up the RenderPass
     void createRenderPass();
@@ -173,17 +175,27 @@ protected:
   using Microsoft::WRL::ComPtr;
 
   // Initialization
+  ComPtr<IDXGIFactory4> mFactory;
+#if defined(_DEBUG)
+  ComPtr<ID3D12Debug> debugController;
+#endif
 	ComPtr<IDXGISwapChain3> mSwapchain;
 	ComPtr<ID3D12Device> mDevice;
-
+  ComPtr<ID3D12CommandAllocator> mCommandAllocator;
+	ComPtr<ID3D12CommandQueue> mCommandQueue;
+	ComPtr<ID3D12GraphicsCommandList> mCommandList;
 	// Resources
 	ComPtr<ID3D12Resource> mVertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
+
+  // Current Frame
+  UINT mCurrentBuffer;
 
 	// Sync
 
 #elif defined(XGFX_OPENGL)
   //Initialization
+  xgfx::OpenGLState mOGLState;
 
   // Resources
   GLuint mVertexArray;
@@ -192,13 +204,25 @@ protected:
 
 #elif defined(XGFX_METAL)
   //Initialization
+  CAMetalLayer* mLayer;
+    // The device (aka GPU) we're using to render
+  id<MTLDevice> mDevice;
+
+
+
+  // The command Queue from which we'll obtain command buffers
+  id<MTLCommandQueue> mCommandQueue;
+
+  // The current size of our view so we can use this in our render pipeline
+  vector_uint2 _viewportSize;
 
   //Resources
-
+  id<MTLLibrary> defaultLibrary;
+  id<MTLFunction> vertexFunction;
+  id<MTLFunction> fragmentFunction;
+  id<MTLRenderPipelineState> mPipelineState;
+  id<MTLCommandBuffer> mCommandBuffer;
   //Sync
 
 #endif
-
-
-
-};
+}

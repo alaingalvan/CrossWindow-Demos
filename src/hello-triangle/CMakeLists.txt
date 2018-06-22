@@ -38,6 +38,7 @@ set_property(
 
 # Core Dependencies
 add_subdirectory(../../external/crosswindow ${CMAKE_BINARY_DIR}/crosswindow)
+add_subdirectory(../../external/crosswindow-graphics ${CMAKE_BINARY_DIR}/crosswindow-graphics)
 
 if(XGFX_PROTOCOL STREQUAL "VULKAN")
     find_path(VULKAN_INCLUDE_DIR NAMES vulkan/vulkan.h HINTS
@@ -98,12 +99,12 @@ xwin_add_executable(
 target_link_libraries(
     ${PROJECT_NAME}
     ${VULKAN_LIBRARY}
+    CrossWindowGraphics
     CrossWindow
 )
 
 target_include_directories(
   ${PROJECT_NAME}
-  PUBLIC "../../external/crosswindow-graphics/src"
   PUBLIC "../../external/vectormath"
   PUBLIC ${VULKAN_INCLUDE_DIR}
 )

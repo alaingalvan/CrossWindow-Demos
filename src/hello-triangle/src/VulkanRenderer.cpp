@@ -147,7 +147,7 @@ Renderer::~Renderer()
     mDevice.destroyBuffer(mUniformDataVS.buffer);
 
     // Destroy Framebuffers, Image Views
-    destroyResources();
+    destroyFrameBuffer();
     mDevice.destroySwapchainKHR(mSwapchain);
 
     // Sync
@@ -173,7 +173,7 @@ void Renderer::destroyAPI()
     mInstance.destroy();
 }
 
-void Renderer::destroyResources()
+void Renderer::destroyFrameBuffer()
 {
     // Depth Attachment
     mDevice.freeMemory(mDepthImageMemory);
@@ -439,7 +439,7 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
     mSwapchainBuffers.resize(backbufferCount);
 }
 
-void Renderer::setupFrameBuffer()
+void Renderer::initFrameBuffer()
 {
     // Create Depth Image Data
     mDepthImage = mDevice.createImage(
@@ -1006,7 +1006,7 @@ void Renderer::initializeResources()
 
     createRenderPass();
 
-    setupFrameBuffer();
+    initFrameBuffer();
 
     // Create Graphics Pipeline
 
@@ -1217,23 +1217,26 @@ void Renderer::render()
     // Framelimit set to 60 fps
     tEnd = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration<float, std::milli>(tEnd - tStart).count();
-    if (time < (1000.0f / 1000.0f))
+    if (time < (1000.0f / 60.0f))
     { return; }
     tStart = std::chrono::high_resolution_clock::now();
 
     // Swap backbuffers
     vk::Result result;
-    do {
-        result = mDevice.acquireNextImageKHR(mSwapchain, UINT64_MAX, mPresentCompleteSemaphore, nullptr, &mCurrentBuffer);
-        if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR) {
-            setupSwapchain(mSurfaceSize.width, mSurfaceSize.height);
-        }
-        if (result == vk::Result::eErrorDeviceLost)
-        {
-            // driver lost
-            return;
-        }
-    } while (result != vk::Result::eSuccess);
+
+    result = mDevice.acquireNextImageKHR(mSwapchain, UINT64_MAX, mPresentCompleteSemaphore, nullptr, &mCurrentBuffer);
+    if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR)
+    {
+        // Swapchain lost, we'll try again next poll
+        resize(mSurfaceSize.width, mSurfaceSize.height);
+        return;
+
+    }
+    if (result == vk::Result::eErrorDeviceLost)
+    {
+        // driver lost, we'll crash in this case:
+        exit(1);
+    }
 
     // Update Uniforms
     mElapsedTime += 0.001f * time;
@@ -1264,7 +1267,8 @@ void Renderer::render()
     
     if (result == vk::Result::eErrorDeviceLost)
     {
-        return;
+        // driver lost, we'll crash in this case:
+        exit(1);
     }
 
     result = mQueue.presentKHR(
@@ -1278,17 +1282,20 @@ void Renderer::render()
         )
     );
 
-    if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR) {
-        setupSwapchain(mSurfaceSize.width, mSurfaceSize.height);
+    if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR)
+    {
+            // Swapchain lost, we'll try again next poll
+            resize(mSurfaceSize.width, mSurfaceSize.height);
+            return;
     }
 }
 
 void Renderer::resize(unsigned width, unsigned height)
 {
     mDevice.waitIdle();
-    destroyResources();
+    destroyFrameBuffer();
     setupSwapchain(width, height);
-    setupFrameBuffer();
+    initFrameBuffer();
     destroyCommands();
     createCommands();
     setupCommands();
