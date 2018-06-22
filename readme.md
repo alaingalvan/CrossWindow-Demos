@@ -21,6 +21,22 @@ An example showcasing the rendering of a simple triangle in every supported grap
 How to create UIs that have resizable windows similar to image editors like Photoshop or game engines like Unity or Unreal Engine.
 -->
 
+## Getting Started
+
+```bash
+# 🐑 Clone the repo
+git clone git@github.com/alaingalvan/CrossWindow-Demos --recurse-submodules
+
+# 💿 go inside the folder
+cd CrossWindow-Demos
+
+# 👯 If you forget to `recurse-submodules` you can always run:
+git submodule update --init
+
+# 🔼 Go inside any demo, like for instance the `/demos/hello-triangle/` folder:
+cd src/hello-triangle/
+
+```
 [cmake-img]: https://img.shields.io/badge/cmake-3.6-1f9948.svg?style=flat-square
 [cmake-url]: https://cmake.org/
 [license-img]: https://img.shields.io/:license-mit-blue.svg?style=flat-square
