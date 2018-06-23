@@ -7,6 +7,7 @@
 #include <vector>
 #include <chrono>
 #include <algorithm>
+#include <fstream>
 
 #if defined(XWIN_WIN32)
 #include <direct.h>
@@ -80,6 +81,13 @@ protected:
 
   std::chrono::time_point<std::chrono::steady_clock> tStart, tEnd;
   float mElapsedTime = 0.0f;
+
+  // Uniform data
+  struct {
+	  Matrix4 projectionMatrix;
+	  Matrix4 modelMatrix;
+	  Matrix4 viewMatrix;
+  } uboVS;
 
 #if defined(XGFX_VULKAN)
   // Initialization
@@ -163,14 +171,6 @@ protected:
       vk::DescriptorBufferInfo descriptor;
   }  mUniformDataVS;
 
-  // Uniform data
-  struct {
-      Matrix4 projectionMatrix;
-      Matrix4 modelMatrix;
-      Matrix4 viewMatrix;
-} uboVS;
-
-
 #elif defined(XGFX_DIRECTX12)
   using Microsoft::WRL::ComPtr;
 
@@ -204,8 +204,11 @@ protected:
   GLuint mVertexArray;
   GLuint mVertexBuffer;
   GLuint mIndexBuffer;
-  GLint mUniformTime;
+  
+  GLuint mUniformUBO;
+
   GLint mPositionAttrib;
+  GLint mColorAttrib;
 #elif defined(XGFX_METAL)
   //Initialization
   CAMetalLayer* mLayer;

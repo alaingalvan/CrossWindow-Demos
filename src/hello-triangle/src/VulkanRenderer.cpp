@@ -1,6 +1,4 @@
 #include "Renderer.h"
-#include <fstream>
-
 
 void findBestExtensions(const std::vector<vk::ExtensionProperties>& installed, const std::vector<const char*>& wanted, std::vector<const char*>& out)
 {
