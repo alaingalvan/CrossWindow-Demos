@@ -13,3 +13,6 @@
 [submodule "external/vectormath"]
 	path = external/vectormath
 	url = https://github.com/glampert/vectormath.git
+[submodule "external/opengl-registry"]
+	path = external/opengl-registry
+	url = https://github.com/KhronosGroup/opengl-registry.git

@@ -198,10 +198,14 @@ protected:
   xgfx::OpenGLState mOGLState;
 
   // Resources
+  GLuint mVertexShader;
+  GLuint mFragmentShader;
+  GLuint mProgram;
   GLuint mVertexArray;
   GLuint mVertexBuffer;
   GLuint mIndexBuffer;
-
+  GLint mUniformTime;
+  GLint mPositionAttrib;
 #elif defined(XGFX_METAL)
   //Initialization
   CAMetalLayer* mLayer;

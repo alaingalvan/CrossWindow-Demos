@@ -1,5 +1,5 @@
-#include "Renderer.h"
 #include <glad/glad.h>
+#include "Renderer.h"
 
 Renderer::Renderer(xwin::Window& window)
 {
@@ -11,19 +11,25 @@ Renderer::Renderer(xwin::Window& window)
 
 Renderer::~Renderer()
 {
-  xgfx::unsetContext(mState);
-  xgfx::destroyContext(mState);
+  xgfx::unsetContext(mOGLState);
+  xgfx::destroyContext(mOGLState);
 }
 
 void Renderer::initializeAPI(xwin::Window& window)
 {
   xgfx::OpenGLDesc ogldesc;
-  mOGLstate = xwin::createContext(&window, ogldesc);
-  xwin::setContext(oglstate);
+  mOGLState = xgfx::createContext(&window, ogldesc);
+  xgfx::setContext(mOGLState);
   if (!gladLoadGL())
   {
     // Failed
   }
+}
+
+void Renderer::destroyAPI()
+{
+	xgfx::unsetContext(mOGLState);
+	xgfx::destroyContext(mOGLState);
 }
 
 void Renderer::initializeResources()
@@ -31,8 +37,8 @@ void Renderer::initializeResources()
 	// OpenGL global setup
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
+	glGenVertexArrays(1, &mVertexArray);
+	glBindVertexArray(mVertexArray);
 	glEnableVertexAttribArray(0);
 
 	auto checkShaderCompilation = [&](GLuint shader)
@@ -54,61 +60,53 @@ void Renderer::initializeResources()
 		return true;
 	};
 
-	vs = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vs, 1, &vsShader, nullptr);
-	glCompileShader(vs);
-	if (!checkShaderCompilation(vs)) close();
+	mVertexShader = glCreateShader(GL_VERTEX_SHADER);
+	//glShaderSource(mVertexShader, 1, &mVertexShader, nullptr);
+	glCompileShader(mVertexShader);
+	if (!checkShaderCompilation(mVertexShader)) return;
 
-	fs = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fs, 1, &fsShader, nullptr);
-	glCompileShader(fs);
-	if (!checkShaderCompilation(fs)) close();
+	mFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	//glShaderSource(mFragmentShader, 1, &mFragmentShader, nullptr);
+	glCompileShader(mFragmentShader);
+	if (!checkShaderCompilation(mFragmentShader)) return;
 
-	program = glCreateProgram();
-	glAttachShader(program, vs);
-	glAttachShader(program, fs);
-	glLinkProgram(program);
+	mProgram = glCreateProgram();
+	glAttachShader(mProgram, mVertexShader);
+	glAttachShader(mProgram, mFragmentShader);
+	glLinkProgram(mProgram);
 
 	GLint result = 0;
-	glGetProgramiv(program, GL_LINK_STATUS, &result);
+	glGetProgramiv(mProgram, GL_LINK_STATUS, &result);
 	if (result != GL_TRUE) {
-		//qDebug() << "Program not linked.";
+		//Program failed to link
+		return;
 	}
 
-	glUseProgram(program);
+	glUseProgram(mProgram);
 
-	vboData = {
-		//position (x, y)
-		-0.5f, -0.5f,
-		-0.5f, 0.5f,
-		0.5f, -0.5f,
-		0.5f, 0.5f
-	};
+	glGenBuffers(1, &mVertexBuffer);
+	glGenBuffers(1, &mIndexBuffer);
 
-	iboData = {
-		0, 1, 2,
-		2, 3, 1
-	};
+	glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer);
 
-	glGenBuffers(1, &vbo);
-	glGenBuffers(1, &ibo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * 3, mVertexBufferData, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * 3, mIndexBufferData, GL_STATIC_DRAW);
 
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vboData.size(), vboData.data(), GL_STATIC_DRAW);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned short) * iboData.size(), iboData.data(), GL_STATIC_DRAW);
-
-	positionAttrib = glGetAttribLocation(program, "aPosition");
-	glEnableVertexAttribArray(positionAttrib);
-	glVertexAttribPointer(positionAttrib, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
+	mPositionAttrib = glGetAttribLocation(mProgram, "aPosition");
+	glEnableVertexAttribArray(mPositionAttrib);
+	glVertexAttribPointer(mPositionAttrib, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
 
 	// Update Uniforms
-	GLint uniformLocation = glGetUniformLocation(program, "myUniform");
-	glUniform4fv(uniformLocation, 1, color);
+	mUniformTime = glGetUniformLocation(mProgram, "myUniform");
+	//glUniform4fv(uniformLocation, 1, color);
 }
 
-Renderer::render()
+void Renderer::destroyResources()
+{
+}
+
+void Renderer::render()
 {
     // Framelimit set to 60 fps
     tEnd = std::chrono::high_resolution_clock::now();
@@ -120,10 +118,14 @@ Renderer::render()
     mElapsedTime += 0.001f * time;
     mElapsedTime = fmodf(mElapsedTime, 6.283185307179586f);
 
-		// Update Uniforms
-		glUniform4fv(uniformLocation, 1, color);
+	// Update Uniforms
+	//glUniform4fv(uniformLocation, 1, color);
 
-		// Draw
-		glClear(GL_COLOR_BUFFER_BIT);
-		glDrawElements(GL_TRIANGLES, iboData.size(), GL_UNSIGNED_SHORT, 0);
+	// Draw
+	glClear(GL_COLOR_BUFFER_BIT);
+	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+}
+
+void Renderer::resize(unsigned width, unsigned height)
+{
 }

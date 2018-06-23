@@ -40,13 +40,14 @@ set_property(
 add_subdirectory(../../external/crosswindow ${CMAKE_BINARY_DIR}/crosswindow)
 add_subdirectory(../../external/crosswindow-graphics ${CMAKE_BINARY_DIR}/crosswindow-graphics)
 
+# Cross Graphics Dependencies
 if(XGFX_PROTOCOL STREQUAL "VULKAN")
     find_path(VULKAN_INCLUDE_DIR NAMES vulkan/vulkan.h HINTS
         "$ENV{VULKAN_SDK}/include"
         "$ENV{VULKAN_SDK}/Include"
         "$ENV{VK_SDK_PATH}/Include")
     if (CMAKE_SIZEOF_VOID_P EQUAL 8)
-        find_library(VULKAN_LIBRARY
+        find_library(XGFX_LIBRARY
             NAMES vulkan-1 vulkan vulkan.1
             HINTS
             "$ENV{VULKAN_SDK}/lib"
@@ -54,13 +55,25 @@ if(XGFX_PROTOCOL STREQUAL "VULKAN")
             "$ENV{VULKAN_SDK}/Bin"
             "$ENV{VK_SDK_PATH}/Bin")
     else()
-        find_library(VULKAN_LIBRARY
+        find_library(XGFX_LIBRARY
                     NAMES vulkan-1 vulkan vulkan.1
                     HINTS
             "$ENV{VULKAN_SDK}/Lib32"
             "$ENV{VULKAN_SDK}/Bin32"
             "$ENV{VK_SDK_PATH}/Bin32")
     endif()
+elseif(XGFX_PROTOCOL STREQUAL "OPENGL")
+    add_library(
+        Glad
+        ../../external/glad/src/glad.c
+    )
+    target_include_directories(
+        Glad
+        PUBLIC ../../external/glad/include
+        PUBLIC ../../external/opengl-registry/api
+        )
+    
+        set(XGFX_LIBRARY Glad)
 endif()
 
 set_property(TARGET CrossWindow PROPERTY FOLDER "Dependencies")
@@ -98,7 +111,7 @@ xwin_add_executable(
 
 target_link_libraries(
     ${PROJECT_NAME}
-    ${VULKAN_LIBRARY}
+    ${XGFX_LIBRARY}
     CrossWindowGraphics
     CrossWindow
 )
