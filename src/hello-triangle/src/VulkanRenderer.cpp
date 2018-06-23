@@ -1,4 +1,4 @@
-﻿#include "Renderer.h"
+#include "Renderer.h"
 #include <fstream>
 
 
@@ -69,7 +69,7 @@ std::vector<char> readFile(const std::string& filename) {
 #else
     getcwd(pBuf, 1024);
     path = pBuf;
-    path += "\\";
+    path += "/";
 #endif
     path += filename;
     std::ifstream file(path, std::ios::ate | std::ios::binary);
@@ -210,26 +210,26 @@ void Renderer::initializeAPI(xwin::Window& window)
     std::vector<const char*> wantedExtensions =
     {
         VK_KHR_SURFACE_EXTENSION_NAME,
-#ifdef VK_USE_PLATFORM_WIN32_KHR
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
         VK_KHR_WIN32_SURFACE_EXTENSION_NAME
-#elif VK_USE_PLATFORM_MACOS_MVK
-        VK_MVK_MACOS_SURFACE_EXTENSION_NAME;
-#elif VK_USE_PLATFORM_XCB_KHR
-        VK_KHR_XCB_SURFACE_EXTENSION_NAME;
-#elif VK_USE_PLATFORM_ANDROID_KHR
-        VK_KHR_ANDROID_SURFACE_EXTENSION_NAME;
-#elif VK_USE_PLATFORM_XLIB_KHR
-        VK_KHR_XLIB_SURFACE_EXTENSION_NAME;
-#elif VK_USE_PLATFORM_XCB_KHR
-        VK_KHR_XCB_SURFACE_EXTENSION_NAME;
-#elif VK_USE_PLATFORM_WAYLAND_KHR
-        VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME;
-#elif VK_USE_PLATFORM_MIR_KHR || VK_USE_PLATFORM_DISPLAY_KHR
-        VK_KHR_DISPLAY_EXTENSION_NAME;
-#elif VK_USE_PLATFORM_ANDROID_KHR
-        VK_KHR_ANDROID_SURFACE_EXTENSION_NAME;
-#elif VK_USE_PLATFORM_IOS_MVK
-        VK_MVK_IOS_SURFACE_EXTENSION_NAME;
+#elif defined(VK_USE_PLATFORM_MACOS_MVK)
+        VK_MVK_MACOS_SURFACE_EXTENSION_NAME
+#elif defined(VK_USE_PLATFORM_XCB_KHR)
+        VK_KHR_XCB_SURFACE_EXTENSION_NAME
+#elif defined(VK_USE_PLATFORM_ANDROID_KHR)
+        VK_KHR_ANDROID_SURFACE_EXTENSION_NAME
+#elif defined(VK_USE_PLATFORM_XLIB_KHR)
+        VK_KHR_XLIB_SURFACE_EXTENSION_NAME
+#elif defined(VK_USE_PLATFORM_XCB_KHR)
+        VK_KHR_XCB_SURFACE_EXTENSION_NAME
+#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
+        VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME
+#elif defined(VK_USE_PLATFORM_MIR_KHR) || defined(VK_USE_PLATFORM_DISPLAY_KHR)
+        VK_KHR_DISPLAY_EXTENSION_NAME
+#elif defined(VK_USE_PLATFORM_ANDROID_KHR)
+        VK_KHR_ANDROID_SURFACE_EXTENSION_NAME
+#elif defined(VK_USE_PLATFORM_IOS_MVK)
+        VK_MVK_IOS_SURFACE_EXTENSION_NAME
 #endif
     };
 
@@ -970,7 +970,6 @@ void Renderer::initializeResources()
 
     // Update Uniforms
     float zoom = -2.5f;
-    auto rotation = Vector3(0.0f, 0.0f, 0.0f);
 
     // Update matrices
     uboVS.projectionMatrix = Matrix4::perspective(45.0f, (float)mViewport.width / (float)mViewport.height, 0.01f, 1024.0f);
@@ -1010,8 +1009,8 @@ void Renderer::initializeResources()
 
     // Create Graphics Pipeline
 
-    std::vector<char> vertShaderCode = readFile("bin/triangle.vert.spv");
-    std::vector<char> fragShaderCode = readFile("bin/triangle.frag.spv");
+    std::vector<char> vertShaderCode = readFile("triangle.vert.spv");
+    std::vector<char> fragShaderCode = readFile("triangle.frag.spv");
 
     mVertModule = mDevice.createShaderModule(
         vk::ShaderModuleCreateInfo(
@@ -1241,7 +1240,6 @@ void Renderer::render()
     // Update Uniforms
     mElapsedTime += 0.001f * time;
     mElapsedTime = fmodf(mElapsedTime, 6.283185307179586f);
-    Vector3 rotation = Vector3(0.0f, mElapsedTime, 0.0f);
     uboVS.modelMatrix = Matrix4::rotationY(mElapsedTime);
 
     void *pData;
