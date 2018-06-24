@@ -88,8 +88,8 @@ void Renderer::initializeResources()
 			std::vector<char> errorLog(maxLength);
 			glGetShaderInfoLog(shader, maxLength, &maxLength, &errorLog[0]);
 			glDeleteShader(shader);
-
-			//qDebug() << errorLog.data();
+            
+            std::cout << errorLog.data();
 
 			return false;
 		}
@@ -121,7 +121,7 @@ void Renderer::initializeResources()
 	GLint result = 0;
 	glGetProgramiv(mProgram, GL_LINK_STATUS, &result);
 	if (result != GL_TRUE) {
-		//Program failed to link
+        std::cout << "Program failed to link.";
 		return;
 	}
 
@@ -152,7 +152,7 @@ void Renderer::initializeResources()
 	glBindBufferRange(GL_UNIFORM_BUFFER, 0, mUniformUBO, 0, sizeof(uboVS));
 	// Update Uniforms
 	uboVS.projectionMatrix = Matrix4::perspective(45.0f, (float)1280 / (float)720, 0.01f, 1024.0f);
-	uboVS.viewMatrix = Matrix4::translation(Vector3(0.0f, 0.0f, -2.5f));
+	uboVS.viewMatrix = Matrix4::translation(Vector3(0.0f, 0.0f, -2.5f)) * Matrix4::rotationZ(3.14f);
 	uboVS.modelMatrix = Matrix4::identity();
 
 	GLvoid* p = glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);

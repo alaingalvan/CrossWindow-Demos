@@ -8,6 +8,7 @@
 #include <chrono>
 #include <algorithm>
 #include <fstream>
+#include <iostream>
 
 #if defined(XWIN_WIN32)
 #include <direct.h>
@@ -18,15 +19,15 @@
 class Renderer
 {
 public:
-  Renderer(xwin::Window& window);
+    Renderer(xwin::Window& window);
 
-  ~Renderer();
+    ~Renderer();
 
-  // Render onto the render target
-  void render();
+    // Render onto the render target
+    void render();
 
-  // Resize the window and internal data structures
-  void resize(unsigned width, unsigned height);
+    // Resize the window and internal data structures
+    void resize(unsigned width, unsigned height);
 
 protected:
 
@@ -64,172 +65,182 @@ protected:
     // Set up the swapchain
     void setupSwapchain(unsigned width, unsigned height);
 
-  struct Vertex
+    struct Vertex
     {
-      float position[3];
-      float color[3];
+        float position[3];
+        float color[3];
     };
-    
-  Vertex mVertexBufferData[3] =
-  {
-    { { 1.0f,  1.0f, 0.0f },{ 1.0f, 0.0f, 0.0f } },
-    { { -1.0f,  1.0f, 0.0f },{ 0.0f, 1.0f, 0.0f } },
-    { { 0.0f, -1.0f, 0.0f },{ 0.0f, 0.0f, 1.0f } }
-  };
 
-  uint32_t mIndexBufferData[3] = { 0, 1, 2 };
+    Vertex mVertexBufferData[3] =
+    {
+      { { 1.0f,  1.0f, 0.0f },{ 1.0f, 0.0f, 0.0f } },
+      { { -1.0f,  1.0f, 0.0f },{ 0.0f, 1.0f, 0.0f } },
+      { { 0.0f, -1.0f, 0.0f },{ 0.0f, 0.0f, 1.0f } }
+    };
 
-  std::chrono::time_point<std::chrono::steady_clock> tStart, tEnd;
-  float mElapsedTime = 0.0f;
+    uint32_t mIndexBufferData[3] = { 0, 1, 2 };
 
-  // Uniform data
-  struct {
-	  Matrix4 projectionMatrix;
-	  Matrix4 modelMatrix;
-	  Matrix4 viewMatrix;
-  } uboVS;
+    std::chrono::time_point<std::chrono::steady_clock> tStart, tEnd;
+    float mElapsedTime = 0.0f;
+
+    // Uniform data
+    struct {
+        Matrix4 projectionMatrix;
+        Matrix4 modelMatrix;
+        Matrix4 viewMatrix;
+    } uboVS;
 
 #if defined(XGFX_VULKAN)
-  // Initialization
-  vk::Instance mInstance;
-  vk::PhysicalDevice mPhysicalDevice;
-  vk::Device mDevice;
+    // Initialization
+    vk::Instance mInstance;
+    vk::PhysicalDevice mPhysicalDevice;
+    vk::Device mDevice;
 
-  vk::SwapchainKHR mSwapchain;
-  vk::SurfaceKHR mSurface;
+    vk::SwapchainKHR mSwapchain;
+    vk::SurfaceKHR mSurface;
 
-  float mQueuePriority;
-  vk::Queue mQueue;
-  uint32_t mQueueFamilyIndex;
+    float mQueuePriority;
+    vk::Queue mQueue;
+    uint32_t mQueueFamilyIndex;
 
-  vk::CommandPool mCommandPool;
-  std::vector<vk::CommandBuffer> mCommandBuffers;
-  uint32_t mCurrentBuffer;
+    vk::CommandPool mCommandPool;
+    std::vector<vk::CommandBuffer> mCommandBuffers;
+    uint32_t mCurrentBuffer;
 
-  vk::Extent2D mSurfaceSize;
-  vk::Rect2D mRenderArea;
-  vk::Viewport mViewport;
-  
-  // Resources
-  vk::Format mSurfaceColorFormat;
-  vk::ColorSpaceKHR mSurfaceColorSpace;
-  vk::Format mSurfaceDepthFormat;
-  vk::Image mDepthImage;
-  vk::DeviceMemory mDepthImageMemory;
+    vk::Extent2D mSurfaceSize;
+    vk::Rect2D mRenderArea;
+    vk::Viewport mViewport;
 
-  vk::DescriptorPool mDescriptorPool;
-  std::vector<vk::DescriptorSetLayout> mDescriptorSetLayouts;
-  std::vector<vk::DescriptorSet> mDescriptorSets;
+    // Resources
+    vk::Format mSurfaceColorFormat;
+    vk::ColorSpaceKHR mSurfaceColorSpace;
+    vk::Format mSurfaceDepthFormat;
+    vk::Image mDepthImage;
+    vk::DeviceMemory mDepthImageMemory;
 
-  vk::ShaderModule mVertModule;
-  vk::ShaderModule mFragModule;
+    vk::DescriptorPool mDescriptorPool;
+    std::vector<vk::DescriptorSetLayout> mDescriptorSetLayouts;
+    std::vector<vk::DescriptorSet> mDescriptorSets;
 
-  vk::RenderPass mRenderPass;
+    vk::ShaderModule mVertModule;
+    vk::ShaderModule mFragModule;
 
-  vk::Buffer mVertexBuffer;
-  vk::Buffer mIndexBuffer;
+    vk::RenderPass mRenderPass;
 
-  vk::PipelineCache mPipelineCache;
-  vk::Pipeline mPipeline;
-  vk::PipelineLayout mPipelineLayout;
+    vk::Buffer mVertexBuffer;
+    vk::Buffer mIndexBuffer;
 
-  // Sync
-  vk::Semaphore mPresentCompleteSemaphore;
-  vk::Semaphore mRenderCompleteSemaphore;
-  std::vector<vk::Fence> mWaitFences;
+    vk::PipelineCache mPipelineCache;
+    vk::Pipeline mPipeline;
+    vk::PipelineLayout mPipelineLayout;
 
-  // Swpachain
-  struct SwapChainBuffer {
-      vk::Image image;
-      std::array<vk::ImageView, 2> views;
-      vk::Framebuffer frameBuffer;
-  };
+    // Sync
+    vk::Semaphore mPresentCompleteSemaphore;
+    vk::Semaphore mRenderCompleteSemaphore;
+    std::vector<vk::Fence> mWaitFences;
 
-  std::vector<SwapChainBuffer> mSwapchainBuffers;
+    // Swpachain
+    struct SwapChainBuffer {
+        vk::Image image;
+        std::array<vk::ImageView, 2> views;
+        vk::Framebuffer frameBuffer;
+    };
 
-  // Vertex buffer and attributes
-  struct {
-      vk::DeviceMemory memory;															// Handle to the device memory for this buffer
-      vk::Buffer buffer;																// Handle to the Vulkan buffer object that the memory is bound to
-      vk::PipelineVertexInputStateCreateInfo inputState;
-      vk::VertexInputBindingDescription inputBinding;
-      std::vector<vk::VertexInputAttributeDescription> inputAttributes;
-  } mVertices;
+    std::vector<SwapChainBuffer> mSwapchainBuffers;
 
-  // Index buffer
-  struct
-  {
-      vk::DeviceMemory memory;
-      vk::Buffer buffer;
-      uint32_t count;
-} mIndices;
+    // Vertex buffer and attributes
+    struct {
+        vk::DeviceMemory memory;															// Handle to the device memory for this buffer
+        vk::Buffer buffer;																// Handle to the Vulkan buffer object that the memory is bound to
+        vk::PipelineVertexInputStateCreateInfo inputState;
+        vk::VertexInputBindingDescription inputBinding;
+        std::vector<vk::VertexInputAttributeDescription> inputAttributes;
+    } mVertices;
 
-  // Uniform block object
-  struct {
-      vk::DeviceMemory memory;
-      vk::Buffer buffer;
-      vk::DescriptorBufferInfo descriptor;
-  }  mUniformDataVS;
+    // Index buffer
+    struct
+    {
+        vk::DeviceMemory memory;
+        vk::Buffer buffer;
+        uint32_t count;
+    } mIndices;
+
+    // Uniform block object
+    struct {
+        vk::DeviceMemory memory;
+        vk::Buffer buffer;
+        vk::DescriptorBufferInfo descriptor;
+    }  mUniformDataVS;
 
 #elif defined(XGFX_DIRECTX12)
-  using Microsoft::WRL::ComPtr;
 
-  // Initialization
-  ComPtr<IDXGIFactory4> mFactory;
+	static const UINT backbufferCount = 2;
+
+    // Initialization
+    IDXGIFactory4* mFactory;
+    IDXGIAdapter1* mAdapter;
 #if defined(_DEBUG)
-  ComPtr<ID3D12Debug> debugController;
+    ID3D12Debug* mDebugController;
 #endif
-	ComPtr<IDXGISwapChain3> mSwapchain;
-	ComPtr<ID3D12Device> mDevice;
-  ComPtr<ID3D12CommandAllocator> mCommandAllocator;
-	ComPtr<ID3D12CommandQueue> mCommandQueue;
-	ComPtr<ID3D12GraphicsCommandList> mCommandList;
-	// Resources
-	ComPtr<ID3D12Resource> mVertexBuffer;
-	D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
+    xwin::Window* mWindow;
+    IDXGISwapChain3* mSwapchain;
+    ID3D12Device* mDevice;
+    ID3D12CommandAllocator* mCommandAllocator;
+    ID3D12CommandQueue* mCommandQueue;
+    ID3D12GraphicsCommandList* mCommandList;
+    // Resources
+    ID3D12Resource* mVertexBuffer;
+    D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
+	ID3D12DescriptorHeap* mRtvHeap;
+	UINT mRtvDescriptorSize;
 
-  // Current Frame
-  UINT mCurrentBuffer;
+    // Current Frame
+    UINT mCurrentBuffer;
+	ID3D12Resource* mRenderTargets[backbufferCount];
 
-	// Sync
+    // Sync
+	UINT mFrameIndex;
+	HANDLE mFenceEvent;
+	ID3D12Fence* mFence;
+	UINT64 mFenceValue;
 
 #elif defined(XGFX_OPENGL)
-  //Initialization
-  xgfx::OpenGLState mOGLState;
+    //Initialization
+    xgfx::OpenGLState mOGLState;
 
-  // Resources
-  GLuint mVertexShader;
-  GLuint mFragmentShader;
-  GLuint mProgram;
-  GLuint mVertexArray;
-  GLuint mVertexBuffer;
-  GLuint mIndexBuffer;
-  
-  GLuint mUniformUBO;
+    // Resources
+    GLuint mVertexShader;
+    GLuint mFragmentShader;
+    GLuint mProgram;
+    GLuint mVertexArray;
+    GLuint mVertexBuffer;
+    GLuint mIndexBuffer;
 
-  GLint mPositionAttrib;
-  GLint mColorAttrib;
+    GLuint mUniformUBO;
+
+    GLint mPositionAttrib;
+    GLint mColorAttrib;
 #elif defined(XGFX_METAL)
-  //Initialization
-  CAMetalLayer* mLayer;
+    //Initialization
+    CAMetalLayer* mLayer;
     // The device (aka GPU) we're using to render
-  id<MTLDevice> mDevice;
+    id<MTLDevice> mDevice;
 
 
 
-  // The command Queue from which we'll obtain command buffers
-  id<MTLCommandQueue> mCommandQueue;
+    // The command Queue from which we'll obtain command buffers
+    id<MTLCommandQueue> mCommandQueue;
 
-  // The current size of our view so we can use this in our render pipeline
-  vector_uint2 _viewportSize;
+    // The current size of our view so we can use this in our render pipeline
+    vector_uint2 _viewportSize;
 
-  //Resources
-  id<MTLLibrary> defaultLibrary;
-  id<MTLFunction> vertexFunction;
-  id<MTLFunction> fragmentFunction;
-  id<MTLRenderPipelineState> mPipelineState;
-  id<MTLCommandBuffer> mCommandBuffer;
-  //Sync
+    //Resources
+    id<MTLLibrary> defaultLibrary;
+    id<MTLFunction> vertexFunction;
+    id<MTLFunction> fragmentFunction;
+    id<MTLRenderPipelineState> mPipelineState;
+    id<MTLCommandBuffer> mCommandBuffer;
+    //Sync
 
 #endif
 };
