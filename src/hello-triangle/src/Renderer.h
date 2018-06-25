@@ -188,11 +188,22 @@ protected:
     ID3D12CommandAllocator* mCommandAllocator;
     ID3D12CommandQueue* mCommandQueue;
     ID3D12GraphicsCommandList* mCommandList;
-    // Resources
-    ID3D12Resource* mVertexBuffer;
+    
+	// Resources
+	D3D12_VIEWPORT mViewport;
+	D3D12_RECT mSurfaceSize;
+	ID3D12Resource* mVertexBuffer;
+	ID3D12Resource* mIndexBuffer;
+	ID3D12Resource* mWVPConstantBuffer;
+	UINT8* mMappedWVPBuffer;
+
     D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
+	D3D12_INDEX_BUFFER_VIEW mIndexBufferView;
 	ID3D12DescriptorHeap* mRtvHeap;
+	ID3D12DescriptorHeap* mCbvHeap;
 	UINT mRtvDescriptorSize;
+	ID3D12RootSignature* mRootSignature;
+	ID3D12PipelineState* mPipelineState;
 
     // Current Frame
     UINT mCurrentBuffer;

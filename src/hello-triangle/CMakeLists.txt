@@ -73,6 +73,7 @@ elseif(XGFX_PROTOCOL STREQUAL "OPENGL")
         )
     
         set(XGFX_LIBRARY Glad)
+        set_property(TARGET Glad PROPERTY FOLDER "Dependencies")
 endif()
 
 set_property(TARGET CrossWindow PROPERTY FOLDER "Dependencies")
