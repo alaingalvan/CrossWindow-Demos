@@ -4,6 +4,11 @@
 
 A simple hello triangle example that uses all modern graphics APIs.
 
+- Vulkan
+- DirectX 12
+- Metal
+- OpenGL
+
 ## Setup
 
 ### Build Shader Compiler/Transpiler
@@ -57,6 +62,12 @@ bin/triangle.vert.hlsl
 ../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.vert.spv --msl --output ../../build/bin/triangle.vert.msl
 ../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.frag.spv --msl --output ../../build/bin/triangle.frag.msl
 ```
+
+> Metal shader bindings don't always correspond with Vulkan shader bindings, so you'll want to change the uniform buffer location from 0 to 1 to let 0 bind to the vertex buffer.
+> ```cpp
+> // change buffer(0) to buffer(1)
+> vertex main0_out main0(main0_in in [[stage_in]], constant UBO& ubo [[buffer(0)]])
+> ```
 
 ### Compile Demo
 

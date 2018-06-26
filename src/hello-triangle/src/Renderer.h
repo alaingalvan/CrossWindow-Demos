@@ -232,25 +232,26 @@ protected:
     GLint mPositionAttrib;
     GLint mColorAttrib;
 #elif defined(XGFX_METAL)
-    //Initialization
-    CAMetalLayer* mLayer;
     // The device (aka GPU) we're using to render
-    id<MTLDevice> mDevice;
-
-
-
+    void* mDevice;
+	
+	void* mLayer;
     // The command Queue from which we'll obtain command buffers
-    id<MTLCommandQueue> mCommandQueue;
+    void* mCommandQueue;
 
     // The current size of our view so we can use this in our render pipeline
-    vector_uint2 _viewportSize;
+    unsigned mViewportSize[2];
 
     //Resources
-    id<MTLLibrary> defaultLibrary;
-    id<MTLFunction> vertexFunction;
-    id<MTLFunction> fragmentFunction;
-    id<MTLRenderPipelineState> mPipelineState;
-    id<MTLCommandBuffer> mCommandBuffer;
+    void* vertLibrary;
+	void* fragLibrary;
+    void* vertexFunction;
+    void* fragmentFunction;
+	void* mVertexBuffer;
+	void* mIndexBuffer;
+	void* mUniformBuffer;
+    void* mPipelineState;
+    void* mCommandBuffer;
     //Sync
 
 #endif

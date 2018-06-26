@@ -606,7 +606,7 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
 	// Update matrices
 	uboVS.projectionMatrix = Matrix4::perspective(45.0f, mViewport.Width / mViewport.Height, 0.01f, 1024.0f);
 
-	uboVS.viewMatrix = Matrix4::translation(Vector3(0.0f, 0.0f, zoom)) * Matrix4::rotationZ(3.14f);;
+	uboVS.viewMatrix = Matrix4::translation(Vector3(0.0f, 0.0f, zoom)) * Matrix4::rotationZ(3.14f);
 
 	uboVS.modelMatrix = Matrix4::identity();
 

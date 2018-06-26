@@ -74,6 +74,8 @@ elseif(XGFX_PROTOCOL STREQUAL "OPENGL")
     
         set(XGFX_LIBRARY Glad)
         set_property(TARGET Glad PROPERTY FOLDER "Dependencies")
+elseif(XGFX_PROTOCOL STREQUAL "METAL")
+    find_library(XGFX_LIBRARY Metal)
 endif()
 
 set_property(TARGET CrossWindow PROPERTY FOLDER "Dependencies")
