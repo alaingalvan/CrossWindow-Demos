@@ -142,6 +142,8 @@ android {
 
 - [Sascha Willems](https://twitter.com/SaschaWillems2) - His Hello Triangle example was modified to use Vulkan's official C++ API, Sony's VectorMath, and to use CrossWindow to handle window creation.
 
-- [Bob Brown](https://github.com/bobbrow) - For his work on the [DirectX 12 Samples](https://github.com/Microsoft/DirectX-Graphics-Samples) from which the DirectX renderer is based off.
+- [Bob Brown](https://github.com/bobbrow) - For his work on the [DirectX 12 Samples](https://github.com/Microsoft/DirectX-Graphics-Samples) from which the DirectX 12 renderer is based off.
+
+- [Matthias Moulin](https://twitter.com/matt77hias) - For his [DirectX 11 Samples](https://github.com/matt77hias/RasterTek) work for with the DirectX 11 renderer is based off of.
 
 The OpenGL example is adapted from my [OpenGL Seed](https://github.com/alaingalvan/opengl-seed) repo showcasing how to use Qt with OpenGL.
