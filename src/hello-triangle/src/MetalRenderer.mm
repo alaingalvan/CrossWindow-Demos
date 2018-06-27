@@ -37,7 +37,8 @@ Renderer::Renderer(xwin::Window& window)
 
 Renderer::~Renderer()
 {
-	
+	destroyResources();
+	destroyAPI();
 }
 
 void Renderer::initializeAPI(xwin::Window& window)
@@ -59,24 +60,39 @@ void Renderer::initializeAPI(xwin::Window& window)
 	mViewportSize[1] = desc.height;
 }
 
+void Renderer::destroyAPI()
+{
+	if ((id<MTLCommandBuffer>)mCommandBuffer != nil)
+	{
+		[(id<MTLCommandBuffer>)mCommandBuffer release];
+	}
+	
+	[(id<MTLCommandQueue>)mCommandQueue release];
+	
+	[(id<MTLDevice>)mDevice release];
+}
+
 void Renderer::initializeResources()
 {
+	// Create Vertex Buffer
 	
 	mVertexBuffer = [(id<MTLDevice>)mDevice newBufferWithLength:sizeof(Vertex) * 3
 														options:MTLResourceOptionCPUCacheModeDefault];
 	[(id<MTLBuffer>)mVertexBuffer setLabel:@"VBO"];
 	memcpy(((id<MTLBuffer>)mVertexBuffer).contents, mVertexBufferData, sizeof(Vertex) * 3);
 	
+	// Create Index Buffer
+	
 	mIndexBuffer = [(id<MTLDevice>)mDevice newBufferWithLength:sizeof(unsigned) * 3
 													   options:MTLResourceOptionCPUCacheModeDefault];
 	[(id<MTLBuffer>)mIndexBuffer setLabel:@"IBO"];
 	memcpy(((id<MTLBuffer>)mIndexBuffer).contents, mIndexBufferData, sizeof(unsigned) * 3);
 	
-	// UBO
+	// Create Uniform Buffer
 	mUniformBuffer = [(id<MTLDevice>)mDevice newBufferWithLength:(sizeof(uboVS) + 255) & ~255
 														 options:MTLResourceOptionCPUCacheModeDefault];
 	[(id<MTLBuffer>)mUniformBuffer setLabel:@"UBO"];
-
+	
 	// Update Uniforms
 	float zoom = -2.5f;
 	
@@ -91,14 +107,15 @@ void Renderer::initializeResources()
 	
 	memcpy(((id<MTLBuffer>)mUniformBuffer).contents, &uboVS, uboSize);
 	
-	
 	// Load all the shader files with a .msl file extension in the project
 	NSError* err = nil;
 	
+	// Load shader files, add null terminator to the end.
 	std::vector<char> vertSource = readFile("triangle.vert.msl");
 	vertSource.emplace_back(0);
 	std::vector<char> fragSource = readFile("triangle.frag.msl");
 	fragSource.emplace_back(0);
+	
 	{
 		NSString* vertPath = [NSString stringWithCString:vertSource.data() encoding:[NSString defaultCStringEncoding]];
 		id<MTLLibrary> vLibrary = [(id<MTLDevice>)mDevice newLibraryWithSource:vertPath options:nil error:&err];
@@ -151,6 +168,21 @@ void Renderer::initializeResources()
 	
 }
 
+void Renderer::destroyResources()
+{
+	[(id<MTLFunction>)fragmentFunction release];
+	[(id<MTLFunction>)vertexFunction release];
+	
+	[(id<MTLLibrary>)vertLibrary release];
+	[(id<MTLLibrary>)fragLibrary release];
+	
+	[(id<MTLBuffer>)mVertexBuffer release];
+	[(id<MTLBuffer>)mIndexBuffer release];
+	[(id<MTLBuffer>)mUniformBuffer release];
+	
+	[(id<MTLRenderPipelineState>)mPipelineState release];
+}
+
 void Renderer::resize(unsigned int width, unsigned int height)
 {
 	mViewportSize[0] = width;
@@ -159,7 +191,7 @@ void Renderer::resize(unsigned int width, unsigned int height)
 
 void Renderer::setupCommands()
 {
-	
+	// Commands are set at render time
 }
 
 void Renderer::render()
@@ -171,6 +203,8 @@ void Renderer::render()
 	{ return; }
 	tStart = std::chrono::high_resolution_clock::now();
 	
+	// Update uniforms
+	
 	mElapsedTime += 0.001f * time;
 	mElapsedTime = fmodf(mElapsedTime, 6.283185307179586f);
 	
@@ -178,6 +212,7 @@ void Renderer::render()
 	memcpy(((id<MTLBuffer>)mUniformBuffer).contents, &uboVS, sizeof(uboVS));
 	
 	// Create a new command buffer for each render pass to the current drawable
+	
 	if (mCommandBuffer != nil)
 	{ [(id<MTLCommandBuffer>)mCommandBuffer release]; }
 	mCommandBuffer = [(id<MTLCommandQueue>)mCommandQueue commandBuffer];
@@ -214,7 +249,7 @@ void Renderer::render()
 		[renderEncoder setVertexBuffer:(id<MTLBuffer>)mUniformBuffer offset:0 atIndex:1];
 		
 		[renderEncoder setVertexBuffer:(id<MTLBuffer>)mVertexBuffer offset:0 atIndex:0];
-
+		
 		
 		[renderEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:3 indexType:MTLIndexTypeUInt32 indexBuffer:(id<MTLBuffer>)mIndexBuffer indexBufferOffset:0];
 		
@@ -224,7 +259,7 @@ void Renderer::render()
 		
 		[(id<MTLCommandBuffer>)mCommandBuffer commit];
 		
-
+		
 	}
 	
 }

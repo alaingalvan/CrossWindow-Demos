@@ -6,6 +6,7 @@ A simple hello triangle example that uses all modern graphics APIs.
 
 - Vulkan
 - DirectX 12
+- DirectX 11
 - Metal
 - OpenGL
 
@@ -50,8 +51,7 @@ Sorry for all the going up/down folders, this is to make sure files go where the
 ../../../../external/glslang/build/StandAlone/Release/glslangValidator -V triangle.frag -o ../../build/bin/triangle.frag.spv
 
 # ❎ HLSL
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.vert.spv --hlsl --shader-model 50 --set-hlsl-vertex-input-semantic 0 POSITION --set-hlsl-vertex-input-semantic 1 COLOR --output ../../build/
-bin/triangle.vert.hlsl
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.vert.spv --hlsl --shader-model 50 --set-hlsl-vertex-input-semantic 0 POSITION --set-hlsl-vertex-input-semantic 1 COLOR --output ../../build/bin/triangle.vert.hlsl
 ../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.frag.spv --hlsl --shader-model 50 --set-hlsl-vertex-input-semantic 0 COLOR --output ../../build/bin/triangle.frag.hlsl
 
 # ⚪ OpenGL ES 3.1
