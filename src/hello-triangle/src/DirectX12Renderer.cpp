@@ -14,6 +14,41 @@ inline void ThrowIfFailed(HRESULT hr)
 
 Renderer::Renderer(xwin::Window& window)
 {
+	mWindow;
+
+	// Initialization
+	mFactory = nullptr;
+	mAdapter = nullptr;
+#if defined(_DEBUG)
+	mDebugController = nullptr;
+#endif
+	mDevice = nullptr;
+	mCommandQueue = nullptr;
+	mCommandAllocator = nullptr;
+	mCommandList = nullptr;
+	mSwapchain = nullptr;
+
+	// Resources
+
+	mVertexBuffer = nullptr;
+	mIndexBuffer = nullptr;
+
+	mUniformBuffer = nullptr;
+	mUniformBufferHeap = nullptr;
+	mMappedUniformBuffer = nullptr;
+
+	mRootSignature = nullptr;
+	mPipelineState = nullptr;
+
+	// Current Frame
+	mRtvHeap = nullptr;
+	for (size_t i = 0; i < backbufferCount; ++i)
+	{
+		mRenderTargets[i] = nullptr;
+	}
+	// Sync
+	mFence = nullptr;
+
 	initializeAPI(window);
 	initializeResources();
 	setupCommands();
@@ -22,12 +57,16 @@ Renderer::Renderer(xwin::Window& window)
 
 Renderer::~Renderer()
 {
-	// Destroy Framebuffers, Image Views
+	if (mSwapchain != nullptr)
+	{
+		mSwapchain->SetFullscreenState(false, nullptr);
+		mSwapchain->Release();
+		mSwapchain = nullptr;
+	}
+
+	destroyCommands();
 	destroyFrameBuffer();
-	mSwapchain->Release();
-
-	// Sync
-
+	destroyResources();
 	destroyAPI();
 }
 
@@ -40,17 +79,17 @@ void Renderer::initializeAPI(xwin::Window& window)
 
 	UINT dxgiFactoryFlags = 0;
 #if defined(_DEBUG)
-	// Enable the debug layer (requires the Graphics Tools "optional feature").
-	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
-	{
-		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&mDebugController))))
-		{
-			mDebugController->EnableDebugLayer();
+	ID3D12Debug* debugController;
+	ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
+	ThrowIfFailed(debugController->QueryInterface(IID_PPV_ARGS(&mDebugController)));
+	mDebugController->EnableDebugLayer();
+	mDebugController->SetEnableGPUBasedValidation(true);
 
-			// Enable additional debug layers.
-			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-		}
-	}
+	dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+
+	debugController->Release();
+	debugController = nullptr;
+
 #endif
 	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&mFactory)));
 
@@ -76,12 +115,22 @@ void Renderer::initializeAPI(xwin::Window& window)
 	}
 
 	// Create Device
-
+	ID3D12Device *pDev = nullptr;
 	ThrowIfFailed(D3D12CreateDevice(
 		mAdapter,
-		D3D_FEATURE_LEVEL_11_0,
+		D3D_FEATURE_LEVEL_12_0,
 		IID_PPV_ARGS(&mDevice)
 	));
+
+	mDevice->SetName(L"Hello Triangle Device");
+
+#if defined(_DEBUG)
+	mDevice->QueryInterface(&mDebugDevice);
+
+	D3D12_RLDO_FLAGS flags = D3D12_RLDO_SUMMARY | D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL;
+
+	mDebugDevice->ReportLiveDeviceObjects(flags);
+#endif
 
 	// Create Command Queue
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
@@ -90,28 +139,75 @@ void Renderer::initializeAPI(xwin::Window& window)
 
 	ThrowIfFailed(mDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCommandQueue)));
 
-	// Create Swapchain
-	const xwin::WindowDesc wdesc = window.getDesc();
-	mSwapchain = nullptr;
-	setupSwapchain(wdesc.width, wdesc.height);
-
-	initFrameBuffer();
 
 	// Create Command Allocator
 
 	ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mCommandAllocator)));
 
+	// Sync
+	ThrowIfFailed(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
+
+	// Create Swapchain
+	const xwin::WindowDesc wdesc = window.getDesc();
+	resize(wdesc.width, wdesc.height);
 }
 
 void Renderer::destroyAPI()
 {
-	// Sync
-	CloseHandle(mFenceEvent);
+	if (mFence)
+	{
+		mFence->Release();
+		mFence = nullptr;
+	}
 
-	// Release all DirectX 12 Handles
+	if (mCommandAllocator)
+	{
+		ThrowIfFailed(mCommandAllocator->Reset());
+		mCommandAllocator->Release();
+		mCommandAllocator = nullptr;
+	}
 
-	mDevice->Release();
-	mFactory->Release();
+	if (mCommandQueue)
+	{
+		mCommandQueue->Release();
+		mCommandQueue = nullptr;
+	}
+
+	if (mDevice)
+	{
+		mDevice->Release();
+		mDevice = nullptr;
+	}
+
+	if (mAdapter)
+	{
+		mAdapter->Release();
+		mAdapter = nullptr;
+	}
+
+	if (mFactory)
+	{
+		mFactory->Release();
+		mFactory = nullptr;
+	}
+
+#if defined(_DEBUG)
+	if (mDebugController)
+	{
+		mDebugController->Release();
+		mDebugController = nullptr;
+	}
+
+	D3D12_RLDO_FLAGS flags = D3D12_RLDO_SUMMARY | D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL;
+
+	mDebugDevice->ReportLiveDeviceObjects(flags);
+
+	if (mDebugDevice)
+	{
+		mDebugDevice->Release();
+		mDebugDevice = nullptr;
+	}
+#endif
 }
 
 void Renderer::initFrameBuffer()
@@ -146,7 +242,19 @@ void Renderer::initFrameBuffer()
 
 void Renderer::destroyFrameBuffer()
 {
-
+	for (size_t i = 0; i < backbufferCount; ++i)
+	{
+		if (mRenderTargets[i])
+		{
+			mRenderTargets[i]->Release();
+			mRenderTargets[i] = 0;
+		}
+	}
+	if (mRtvHeap)
+	{
+		mRtvHeap->Release();
+		mRtvHeap = nullptr;
+	}
 }
 
 void Renderer::initializeResources()
@@ -192,21 +300,28 @@ void Renderer::initializeResources()
 		{
 			ThrowIfFailed(D3D12SerializeVersionedRootSignature(&rootSignatureDesc, &signature, &error));
 			ThrowIfFailed(mDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&mRootSignature)));
+			mRootSignature->SetName(L"Hello Triangle Root Signature");
 		}
 		catch (std::exception e)
 		{
 			const char* errStr = (const char*)error->GetBufferPointer();
 			std::cout << errStr;
+			error->Release();
+			error = nullptr;
 		}
 
-
+		if (signature)
+		{
+			signature->Release();
+			signature = nullptr;
+		}
 	}
 
 	// Create the pipeline state, which includes compiling and loading shaders.
 	{
-		ID3DBlob* vertexShader;
-		ID3DBlob* pixelShader;
-		ID3DBlob* errors;
+		ID3DBlob* vertexShader = nullptr;
+		ID3DBlob* pixelShader = nullptr;
+		ID3DBlob* errors = nullptr;
 
 #if defined(_DEBUG)
 		// Enable better shader debugging with the graphics debugging tools.
@@ -234,8 +349,10 @@ void Renderer::initializeResources()
 		{
 			const char* errStr = (const char*)errors->GetBufferPointer();
 			std::cout << errStr;
+			errors->Release();
+			errors = nullptr;
 		}
-		
+
 		// Define the vertex input layout.
 		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
 		{
@@ -260,7 +377,7 @@ void Renderer::initializeResources()
 			heapDesc.NumDescriptors = 1;
 			heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 			heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-			ThrowIfFailed(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mCbvHeap)));
+			ThrowIfFailed(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mUniformBufferHeap)));
 
 			D3D12_RESOURCE_DESC uboResourceDesc;
 			uboResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -282,15 +399,15 @@ void Renderer::initializeResources()
 				&uboResourceDesc,
 				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr,
-				IID_PPV_ARGS(&mWVPConstantBuffer)));
-			mCbvHeap->SetName(L"Constant Buffer Upload Resource Heap");
+				IID_PPV_ARGS(&mUniformBuffer)));
+			mUniformBufferHeap->SetName(L"Constant Buffer Upload Resource Heap");
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-			cbvDesc.BufferLocation = mWVPConstantBuffer->GetGPUVirtualAddress();
+			cbvDesc.BufferLocation = mUniformBuffer->GetGPUVirtualAddress();
 			cbvDesc.SizeInBytes = (sizeof(uboVS) + 255) & ~255;    // CB size is required to be 256-byte aligned.
 
-			D3D12_CPU_DESCRIPTOR_HANDLE cbvHandle(mCbvHeap->GetCPUDescriptorHandleForHeapStart());
-			cbvHandle.ptr = cbvHandle.ptr + mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) *  0;
+			D3D12_CPU_DESCRIPTOR_HANDLE cbvHandle(mUniformBufferHeap->GetCPUDescriptorHandleForHeapStart());
+			cbvHandle.ptr = cbvHandle.ptr + mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 0;
 
 			mDevice->CreateConstantBufferView(&cbvDesc, cbvHandle);
 
@@ -299,8 +416,9 @@ void Renderer::initializeResources()
 			readRange.Begin = 0;
 			readRange.End = 0;
 
-			ThrowIfFailed(mWVPConstantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&mMappedWVPBuffer)));
-			memcpy(mMappedWVPBuffer, &uboVS, sizeof(uboVS));
+			ThrowIfFailed(mUniformBuffer->Map(0, &readRange, reinterpret_cast<void**>(&mMappedUniformBuffer)));
+			memcpy(mMappedUniformBuffer, &uboVS, sizeof(uboVS));
+			mUniformBuffer->Unmap(0, &readRange);
 		}
 
 		// Describe and create the graphics pipeline state object (PSO).
@@ -364,6 +482,18 @@ void Renderer::initializeResources()
 		catch (std::exception e)
 		{
 			e;
+		}
+
+		if (vertexShader)
+		{
+			vertexShader->Release();
+			vertexShader = nullptr;
+		}
+
+		if (pixelShader)
+		{
+			pixelShader->Release();
+			pixelShader = nullptr;
 		}
 	}
 
@@ -483,7 +613,6 @@ void Renderer::initializeResources()
 
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
 	{
-		ThrowIfFailed(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
 		mFenceValue = 1;
 
 		// Create an event handle to use for frame synchronization.
@@ -512,10 +641,53 @@ void Renderer::initializeResources()
 	}
 }
 
+void Renderer::destroyResources()
+{
+	// Sync
+	CloseHandle(mFenceEvent);
+
+	if (mPipelineState)
+	{
+		mPipelineState->Release();
+		mPipelineState = nullptr;
+	}
+
+	if (mRootSignature)
+	{
+		mRootSignature->Release();
+		mRootSignature = nullptr;
+	}
+
+	if (mVertexBuffer)
+	{
+		mVertexBuffer->Release();
+		mVertexBuffer = nullptr;
+	}
+
+	if (mIndexBuffer)
+	{
+		mIndexBuffer->Release();
+		mIndexBuffer = nullptr;
+	}
+
+	if (mUniformBuffer)
+	{
+		mUniformBuffer->Release();
+		mUniformBuffer = nullptr;
+	}
+
+	if (mUniformBufferHeap)
+	{
+		mUniformBufferHeap->Release();
+		mUniformBufferHeap = nullptr;
+	}
+}
+
 void Renderer::createCommands()
 {
 	// Create the command list.
 	ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocator, mPipelineState, IID_PPV_ARGS(&mCommandList)));
+	mCommandList->SetName(L"Hello Triangle Command List");
 }
 
 void Renderer::setupCommands()
@@ -535,10 +707,10 @@ void Renderer::setupCommands()
 	mCommandList->RSSetViewports(1, &mViewport);
 	mCommandList->RSSetScissorRects(1, &mSurfaceSize);
 
-	ID3D12DescriptorHeap *pDescriptorHeaps[] = { mCbvHeap };
+	ID3D12DescriptorHeap *pDescriptorHeaps[] = { mUniformBufferHeap };
 	mCommandList->SetDescriptorHeaps(_countof(pDescriptorHeaps), pDescriptorHeaps);
 
-	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
+	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle(mUniformBufferHeap->GetGPUDescriptorHandleForHeapStart());
 	mCommandList->SetGraphicsRootDescriptorTable(0, srvHandle);
 
 	// Indicate that the back buffer will be used as a render target.
@@ -581,22 +753,41 @@ void Renderer::setupCommands()
 
 void Renderer::destroyCommands()
 {
+	if (mCommandList)
+	{
+		mCommandList->Reset(mCommandAllocator, mPipelineState);
+		mCommandList->ClearState(mPipelineState);
+		ThrowIfFailed(mCommandList->Close());
+		ID3D12CommandList* ppCommandLists[] = { mCommandList };
+		mCommandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
+		// Wait for GPU to finish work
+		const UINT64 fence = mFenceValue;
+		ThrowIfFailed(mCommandQueue->Signal(mFence, fence));
+		mFenceValue++;
+		if (mFence->GetCompletedValue() < fence)
+		{
+			ThrowIfFailed(mFence->SetEventOnCompletion(fence, mFenceEvent));
+			WaitForSingleObject(mFenceEvent, INFINITE);
+		}
+
+		mCommandList->Release();
+		mCommandList = nullptr;
+	}
 }
-
 
 void Renderer::setupSwapchain(unsigned width, unsigned height)
 {
 
 	mSurfaceSize.left = 0;
 	mSurfaceSize.top = 0;
-	mSurfaceSize.right = static_cast<LONG>(width);
-	mSurfaceSize.bottom = static_cast<LONG>(height);
+	mSurfaceSize.right = static_cast<LONG>(mWidth);
+	mSurfaceSize.bottom = static_cast<LONG>(mHeight);
 
 	mViewport.TopLeftX = 0.0f;
 	mViewport.TopLeftY = 0.0f;
-	mViewport.Width = static_cast<float>(width);
-	mViewport.Height = static_cast<float>(height);
+	mViewport.Width = static_cast<float>(mWidth);
+	mViewport.Height = static_cast<float>(mHeight);
 	mViewport.MinDepth = .1f;
 	mViewport.MaxDepth = 1000.f;
 
@@ -612,36 +803,54 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
 
 	if (mSwapchain != nullptr)
 	{
-		mSwapchain->Release();
+		mSwapchain->ResizeBuffers(backbufferCount, mWidth, mHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
 	}
-
-	DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
-	swapchainDesc.BufferCount = backbufferCount;
-	swapchainDesc.Width = width;
-	swapchainDesc.Height = height;
-	swapchainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	swapchainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	swapchainDesc.SampleDesc.Count = 1;
-
-	IDXGISwapChain1* swapchain = xgfx::createSwapchain(mWindow, mFactory, mCommandQueue, &swapchainDesc);
-	HRESULT swapchainSupport = swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapchain);
-	if (SUCCEEDED(swapchainSupport))
+	else
 	{
-		mSwapchain = (IDXGISwapChain3*)swapchain;
+		DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
+		swapchainDesc.BufferCount = backbufferCount;
+		swapchainDesc.Width = width;
+		swapchainDesc.Height = height;
+		swapchainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		swapchainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+		swapchainDesc.SampleDesc.Count = 1;
+
+		IDXGISwapChain1* swapchain = xgfx::createSwapchain(mWindow, mFactory, mCommandQueue, &swapchainDesc);
+		HRESULT swapchainSupport = swapchain->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapchain);
+		if (SUCCEEDED(swapchainSupport))
+		{
+			mSwapchain = (IDXGISwapChain3*)swapchain;
+		}
 	}
+	mFrameIndex = mSwapchain->GetCurrentBackBufferIndex();
 }
 
 void Renderer::resize(unsigned width, unsigned height)
 {
-	/*
+	mWidth = clamp(width, 1u, 0xffffu);
+	mHeight = clamp(height, 1u, 0xffffu);
+
+	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
+	// This is code implemented as such for simplicity. The D3D12HelloFrameBuffering
+	// sample illustrates how to use fences for efficient resource usage and to
+	// maximize GPU utilization.
+
+	// Signal and increment the fence value.
+	const UINT64 fence = mFenceValue;
+	ThrowIfFailed(mCommandQueue->Signal(mFence, fence));
+	mFenceValue++;
+
+	// Wait until the previous frame is finished.
+	if (mFence->GetCompletedValue() < fence)
+	{
+		ThrowIfFailed(mFence->SetEventOnCompletion(fence, mFenceEvent));
+		WaitForSingleObjectEx(mFenceEvent, INFINITE, false);
+	}
+
 	destroyFrameBuffer();
 	setupSwapchain(width, height);
 	initFrameBuffer();
-	destroyCommands();
-	createCommands();
-	setupCommands();
-	*/
 }
 
 void Renderer::render()
@@ -664,8 +873,10 @@ void Renderer::render()
 		D3D12_RANGE readRange;
 		readRange.Begin = 0;
 		readRange.End = 0;
-		ThrowIfFailed(mWVPConstantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&mMappedWVPBuffer)));
-		memcpy(mMappedWVPBuffer, &uboVS, sizeof(uboVS));
+
+		ThrowIfFailed(mUniformBuffer->Map(0, &readRange, reinterpret_cast<void**>(&mMappedUniformBuffer)));
+		memcpy(mMappedUniformBuffer, &uboVS, sizeof(uboVS));
+		mUniformBuffer->Unmap(0, &readRange);
 	}
 
 	// Record all the commands we need to render the scene into the command list.
@@ -677,9 +888,6 @@ void Renderer::render()
 	mSwapchain->Present(1, 0);
 
 	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
-	// This is code implemented as such for simplicity. The D3D12HelloFrameBuffering
-	// sample illustrates how to use fences for efficient resource usage and to
-	// maximize GPU utilization.
 
 	// Signal and increment the fence value.
 	const UINT64 fence = mFenceValue;

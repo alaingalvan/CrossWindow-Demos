@@ -1,6 +1,6 @@
 #include "Renderer.h"
 
-// Helper functions
+// DirectX utils
 
 inline void ThrowIfFailed(HRESULT hr)
 {
@@ -16,12 +16,15 @@ Renderer::Renderer(xwin::Window& window)
 {
 	mVsync = true;
 	mWindow = nullptr;
-	
+
 	mFactory = nullptr;
 	mAdapter = nullptr;
 	mAdapterOutput = nullptr;
 	mDevice = nullptr;
 	mDeviceContext = nullptr;
+#if defined(_DEBUG)
+	mDebugController = nullptr;
+#endif
 
 	mVertexBuffer = nullptr;
 	mIndexBuffer = nullptr;
@@ -47,6 +50,13 @@ Renderer::Renderer(xwin::Window& window)
 
 Renderer::~Renderer()
 {
+	if (mSwapchain != nullptr)
+	{
+		mSwapchain->SetFullscreenState(false, nullptr);
+		mSwapchain->Release();
+		mSwapchain = nullptr;
+	}
+	destroyFrameBuffer();
 	destroyResources();
 	destroyAPI();
 }
@@ -94,7 +104,7 @@ void Renderer::initializeAPI(xwin::Window& window)
 
 	// Release the display mode list.
 	delete[] displayModeList;
-	displayModeList = 0;
+	displayModeList = nullptr;
 
 	D3D_FEATURE_LEVEL featureLevelInputs[7] =
 	{
@@ -122,10 +132,24 @@ void Renderer::initializeAPI(xwin::Window& window)
 		&mDeviceContext
 	));
 
+#if defined(_DEBUG)
+	// Enable the debug layer (requires the Graphics Tools "optional feature").
+	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
+	ThrowIfFailed(mDevice->QueryInterface(IID_PPV_ARGS(&mDebugController)));
+#endif
 }
 
 void Renderer::destroyAPI()
 {
+	mDeviceContext->ClearState();
+	mDeviceContext->Flush();
+
+	mDevice->Release();
+	mDevice = nullptr;
+
+	mDeviceContext->Release();
+	mDeviceContext = nullptr;
+
 	mAdapterOutput->Release();
 	mAdapterOutput = nullptr;
 
@@ -135,6 +159,15 @@ void Renderer::destroyAPI()
 	mFactory->Release();
 	mFactory = nullptr;
 
+#if defined(_DEBUG)
+	// Report on any remaining objects that haven't been deallocated
+
+	D3D11_RLDO_FLAGS rldoFlags = D3D11_RLDO_SUMMARY | D3D11_RLDO_DETAIL | D3D11_RLDO_IGNORE_INTERNAL;
+	mDebugController->ReportLiveDeviceObjects(rldoFlags);
+
+	mDebugController->Release();
+	mDebugController = nullptr;
+#endif
 }
 
 void Renderer::initializeResources()
@@ -285,6 +318,42 @@ void Renderer::initializeResources()
 
 void Renderer::destroyResources()
 {
+	if (mVertexBuffer)
+	{
+		mVertexBuffer->Release();
+		mVertexBuffer = nullptr;
+	}
+
+	if (mIndexBuffer)
+	{
+		mIndexBuffer->Release();
+		mIndexBuffer = nullptr;
+	}
+
+	if (mLayout)
+	{
+		mLayout->Release();
+		mLayout = nullptr;
+	}
+
+	if (mUniformBuffer)
+	{
+		mUniformBuffer->Release();
+		mUniformBuffer = nullptr;
+	}
+
+	if (mVertexShader)
+	{
+		mVertexShader->Release();
+		mVertexShader = nullptr;
+	}
+
+	if (mPixelShader)
+	{
+		mPixelShader->Release();
+		mPixelShader = nullptr;
+	}
+
 	if (mRasterState)
 	{
 		mRasterState->Release();
@@ -375,6 +444,12 @@ void Renderer::initFrameBuffer()
 
 void Renderer::destroyFrameBuffer()
 {
+	if (mBackbufferTex)
+	{
+		mBackbufferTex->Release();
+		mBackbufferTex = nullptr;
+	}
+
 	if (mDepthStencilView)
 	{
 		mDepthStencilView->Release();
@@ -400,7 +475,6 @@ void Renderer::destroyFrameBuffer()
 	}
 }
 
-
 void Renderer::setupSwapchain(unsigned width, unsigned height)
 {
 	mViewport.TopLeftX = 0.0f;
@@ -424,6 +498,7 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
 	{
 		mSwapchain->SetFullscreenState(false, nullptr);
 		mSwapchain->Release();
+		mSwapchain = nullptr;
 	}
 
 	DXGI_SWAP_CHAIN_DESC swapchainDesc;
@@ -473,8 +548,8 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
 
 void Renderer::resize(unsigned width, unsigned height)
 {
-	mWidth = width;
-	mHeight = height;
+	mWidth = clamp(width, 1u, 0xffffu);
+	mHeight = clamp(height, 1u, 0xffffu);
 
 	destroyFrameBuffer();
 	setupSwapchain(width, height);
@@ -554,4 +629,34 @@ void Renderer::render()
 	{
 		mSwapchain->Present(0, 0);
 	}
+}
+
+/**
+ * While most modern graphics APIs have a command queue, sync, and render passes, DirectX 11 does not.
+ * So these functions are just stubs:
+ */
+
+void Renderer::createCommands()
+{
+	// DirectX 11 doesn't have a queue, but rather a context that's set at render time
+}
+
+void Renderer::setupCommands()
+{
+	// DirectX 11 doesn't have commands
+}
+
+void Renderer::destroyCommands()
+{
+	//DirectX 11 doesn't have commands
+}
+
+void Renderer::createRenderPass()
+{
+	// DirectX 11 doesn't have render passes, just framebuffer outputs
+}
+
+void Renderer::createSynchronization()
+{
+	// DirectX 11 doesn't have synchronization primitives
 }

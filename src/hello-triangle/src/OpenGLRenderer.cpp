@@ -1,40 +1,12 @@
 ﻿#include <glad/glad.h>
 #include "Renderer.h"
 
-std::vector<char> readFile(const std::string& filename) {
-	std::string path = filename;
-	char pBuf[1024];
-#ifdef XWIN_WIN32
-
-	_getcwd(pBuf, 1024);
-	path = pBuf;
-	path += "\\";
-#else
-	getcwd(pBuf, 1024);
-	path = pBuf;
-	path += "/";
-#endif
-	path += filename;
-	std::ifstream file(path, std::ios::ate | std::ios::binary);
-	bool exists = (bool)file;
-
-	if (!exists || !file.is_open()) {
-		throw std::runtime_error("failed to open file!");
-	}
-
-	size_t fileSize = (size_t)file.tellg();
-	std::vector<char> buffer(fileSize);
-
-	file.seekg(0);
-	file.read(buffer.data(), fileSize);
-
-	file.close();
-
-	return buffer;
-};
-
 Renderer::Renderer(xwin::Window& window)
 {
+	xwin::WindowDesc desc = window.getDesc();
+	mWidth = clamp(desc.width, 1u, 0xffffu);
+	mHeight = clamp(desc.height, 1u, 0xffffu);
+
 	initializeAPI(window);
 	initializeResources();
 	setupCommands();
@@ -43,8 +15,11 @@ Renderer::Renderer(xwin::Window& window)
 
 Renderer::~Renderer()
 {
-	xgfx::unsetContext(mOGLState);
-	xgfx::destroyContext(mOGLState);
+	destroyFrameBuffer();
+
+	destroyResources();
+
+	destroyAPI();
 }
 
 void Renderer::initializeAPI(xwin::Window& window)
@@ -55,11 +30,16 @@ void Renderer::initializeAPI(xwin::Window& window)
 	if (!gladLoadGL())
 	{
 		// Failed
+		std::cout << "Failed to load OpenGL.";
 		return;
 	}
-
-	auto err = glGetError();
-
+#if defined(_DEBUG)
+	GLenum err = glGetError();
+	if (err != GL_NO_ERROR)
+	{
+		std::cout << "Error loading OpenGL.";
+	}
+#endif
 }
 
 void Renderer::destroyAPI()
@@ -72,6 +52,7 @@ void Renderer::initializeResources()
 {
 	// OpenGL global setup
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+	glEnable(GL_DEPTH_TEST);
 
 	glGenVertexArrays(1, &mVertexArray);
 	glBindVertexArray(mVertexArray);
@@ -79,6 +60,7 @@ void Renderer::initializeResources()
 
 	auto checkShaderCompilation = [&](GLuint shader)
 	{
+#if defined(_DEBUG)
 		GLint isCompiled = 0;
 		glGetShaderiv(shader, GL_COMPILE_STATUS, &isCompiled);
 		if (isCompiled == GL_FALSE)
@@ -88,11 +70,12 @@ void Renderer::initializeResources()
 			std::vector<char> errorLog(maxLength);
 			glGetShaderInfoLog(shader, maxLength, &maxLength, &errorLog[0]);
 			glDeleteShader(shader);
-            
-            std::cout << errorLog.data();
+
+			std::cout << errorLog.data();
 
 			return false;
 		}
+#endif
 		return true;
 	};
 
@@ -120,11 +103,12 @@ void Renderer::initializeResources()
 
 	GLint result = 0;
 	glGetProgramiv(mProgram, GL_LINK_STATUS, &result);
+#if defined(_DEBUG)
 	if (result != GL_TRUE) {
-        std::cout << "Program failed to link.";
+		std::cout << "Program failed to link.";
 		return;
 	}
-
+#endif
 	glUseProgram(mProgram);
 
 	glGenBuffers(1, &mVertexBuffer);
@@ -163,6 +147,15 @@ void Renderer::initializeResources()
 
 void Renderer::destroyResources()
 {
+	glDisableVertexAttribArray(mPositionAttrib);
+	glDisableVertexAttribArray(mColorAttrib);
+	glDeleteShader(mVertexShader);
+	glDeleteShader(mFragmentShader);
+	glDeleteProgram(mProgram);
+	glDeleteVertexArrays(1, &mVertexArray);
+	glDeleteBuffers(1, &mVertexBuffer);
+	glDeleteBuffers(1, &mIndexBuffer);
+	glDeleteBuffers(1, &mUniformUBO);
 }
 
 void Renderer::render()
@@ -188,18 +181,80 @@ void Renderer::render()
 	glUnmapBuffer(GL_UNIFORM_BUFFER);
 
 	// Draw
-	glClear(GL_COLOR_BUFFER_BIT);
+	glBindFramebuffer(GL_FRAMEBUFFER, mFrameBuffer);
+	glViewport(0, 0, mWidth, mHeight);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+
+	// Blit framebuffer to window
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, mFrameBuffer);
+	glReadBuffer(GL_COLOR_ATTACHMENT0);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glViewport(0, 0, mWidth, mHeight);
+	glBlitFramebuffer(0, 0, mWidth, mHeight, 0, 0, mWidth, mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 }
 
 void Renderer::resize(unsigned width, unsigned height)
 {
+	mWidth = clamp(width, 1u, 0xffffu);
+	mHeight = clamp(height, 1u, 0xffffu);
+
 	// Update Unforms
-	uboVS.projectionMatrix = Matrix4::perspective(45.0f, (float)width / (float)height, 0.01f, 1024.0f);
+	uboVS.projectionMatrix = Matrix4::perspective(45.0f, static_cast<float>(mWidth) / static_cast<float>(mHeight), 0.01f, 1024.0f);
 	GLvoid* p = glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
 	memcpy(p, &uboVS, sizeof(uboVS));
 	glUnmapBuffer(GL_UNIFORM_BUFFER);
+
+	destroyFrameBuffer();
+	initFrameBuffer();
 }
+
+void Renderer::initFrameBuffer()
+{
+	glGenTextures(1, &mFrameBufferTex);
+	glBindTexture(GL_TEXTURE_2D, mFrameBufferTex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mWidth, mHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glGenRenderbuffers(1, &mRenderBufferDepth);
+	glBindRenderbuffer(GL_RENDERBUFFER, mRenderBufferDepth);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, mWidth, mHeight);
+
+	glGenFramebuffers(1, &mFrameBuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, mFrameBuffer);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mFrameBufferTex, 0);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mRenderBufferDepth);
+
+	GLenum DrawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
+	glDrawBuffers(1, DrawBuffers);
+#if defined(_DEBUG)
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (status != GL_FRAMEBUFFER_COMPLETE)
+	{
+		std::cout << "Frame Buffer Failed to be Created!";
+	}
+#endif
+	glBindFramebuffer(GL_FRAMEBUFFER, mFrameBuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Renderer::destroyFrameBuffer()
+{
+	glDeleteTextures(1, &mFrameBufferTex);
+	glDeleteRenderbuffers(1, &mRenderBufferDepth);
+	glDeleteFramebuffers(1, &mFrameBuffer);
+}
+
+/**
+ * While most modern graphics APIs have a swapchains, command queue, sync, and render passes, OpenGL does not.
+ * OpenGL does have frame buffers, but it creates one by default.
+ * So these functions are just stubs:
+ */
 
 void Renderer::setupSwapchain(unsigned width, unsigned height)
 {
@@ -219,16 +274,6 @@ void Renderer::setupCommands()
 void Renderer::destroyCommands()
 {
 	// Driver destroys commands
-}
-
-void Renderer::initFrameBuffer()
-{
-	// Driver creates initial framebuffer
-}
-
-void Renderer::destroyFrameBuffer()
-{
-	// Driver creates color + depth stencil frame buffer by default
 }
 
 void Renderer::createRenderPass()

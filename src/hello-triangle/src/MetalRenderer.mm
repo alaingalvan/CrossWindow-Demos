@@ -2,31 +2,6 @@
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
 
-std::vector<char> readFile(const std::string& filename) {
-	std::string path = filename;
-	char pBuf[1024];
-	getcwd(pBuf, 1024);
-	path = pBuf;
-	path += "/";
-	path += filename;
-	std::ifstream file(path, std::ios::ate | std::ios::binary);
-	bool exists = (bool)file;
-	
-	if (!exists || !file.is_open()) {
-		throw std::runtime_error("failed to open file!");
-	}
-	
-	size_t fileSize = (size_t)file.tellg();
-	std::vector<char> buffer(fileSize);
-	
-	file.seekg(0);
-	file.read(buffer.data(), fileSize);
-	
-	file.close();
-	
-	return buffer;
-};
-
 Renderer::Renderer(xwin::Window& window)
 {
 	initializeAPI(window);

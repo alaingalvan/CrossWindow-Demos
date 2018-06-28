@@ -16,6 +16,49 @@
 #include <unistd.h>
 #endif
 
+// Common Utils
+
+inline std::vector<char> readFile(const std::string& filename) {
+	std::string path = filename;
+	char pBuf[1024];
+#ifdef XWIN_WIN32
+
+	_getcwd(pBuf, 1024);
+	path = pBuf;
+	path += "\\";
+#else
+	getcwd(pBuf, 1024);
+	path = pBuf;
+	path += "/";
+#endif
+	path += filename;
+	std::ifstream file(path, std::ios::ate | std::ios::binary);
+	bool exists = (bool)file;
+
+	if (!exists || !file.is_open()) {
+		throw std::runtime_error("failed to open file!");
+	}
+
+	size_t fileSize = (size_t)file.tellg();
+	std::vector<char> buffer(fileSize);
+
+	file.seekg(0);
+	file.read(buffer.data(), fileSize);
+
+	file.close();
+
+	return buffer;
+};
+
+template <typename T>
+inline T clamp(const T& value, const T& low, const T& high)
+{
+	return value < low ? low : (value > high ? high : value);
+}
+
+
+// Renderer
+
 class Renderer
 {
 public:
@@ -176,38 +219,44 @@ protected:
 
 	static const UINT backbufferCount = 2;
 
+	xwin::Window* mWindow;
+	unsigned mWidth, mHeight;
+
 	// Initialization
 	IDXGIFactory4* mFactory;
 	IDXGIAdapter1* mAdapter;
 #if defined(_DEBUG)
-	ID3D12Debug* mDebugController;
+	ID3D12Debug1* mDebugController;
+	ID3D12DebugDevice* mDebugDevice;
 #endif
-	xwin::Window* mWindow;
-	IDXGISwapChain3* mSwapchain;
 	ID3D12Device* mDevice;
-	ID3D12CommandAllocator* mCommandAllocator;
 	ID3D12CommandQueue* mCommandQueue;
+	ID3D12CommandAllocator* mCommandAllocator;
 	ID3D12GraphicsCommandList* mCommandList;
-
-	// Resources
-	D3D12_VIEWPORT mViewport;
-	D3D12_RECT mSurfaceSize;
-	ID3D12Resource* mVertexBuffer;
-	ID3D12Resource* mIndexBuffer;
-	ID3D12Resource* mWVPConstantBuffer;
-	UINT8* mMappedWVPBuffer;
-
-	D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
-	D3D12_INDEX_BUFFER_VIEW mIndexBufferView;
-	ID3D12DescriptorHeap* mRtvHeap;
-	ID3D12DescriptorHeap* mCbvHeap;
-	UINT mRtvDescriptorSize;
-	ID3D12RootSignature* mRootSignature;
-	ID3D12PipelineState* mPipelineState;
 
 	// Current Frame
 	UINT mCurrentBuffer;
+	ID3D12DescriptorHeap* mRtvHeap;
 	ID3D12Resource* mRenderTargets[backbufferCount];
+	IDXGISwapChain3* mSwapchain;
+	
+	// Resources
+	D3D12_VIEWPORT mViewport;
+	D3D12_RECT mSurfaceSize;
+	
+	ID3D12Resource* mVertexBuffer;
+	ID3D12Resource* mIndexBuffer;
+
+	ID3D12Resource* mUniformBuffer;
+	ID3D12DescriptorHeap* mUniformBufferHeap;
+	UINT8* mMappedUniformBuffer;
+
+	D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
+	D3D12_INDEX_BUFFER_VIEW mIndexBufferView;
+
+	UINT mRtvDescriptorSize;
+	ID3D12RootSignature* mRootSignature;
+	ID3D12PipelineState* mPipelineState;
 
 	// Sync
 	UINT mFrameIndex;
@@ -224,10 +273,22 @@ protected:
 
 	IDXGIFactory* mFactory;
 	IDXGIAdapter* mAdapter;
+#if defined(_DEBUG)
+	ID3D11Debug* mDebugController;
+#endif
 	IDXGIOutput* mAdapterOutput;
 	unsigned mNumerator, mDenominator;
 	ID3D11Device* mDevice;
 	ID3D11DeviceContext* mDeviceContext;
+
+	IDXGISwapChain* mSwapchain;
+	ID3D11Texture2D* mBackbufferTex;
+	ID3D11Texture2D* mDepthStencilBuffer;
+	ID3D11DepthStencilView* mDepthStencilView;
+	ID3D11RenderTargetView* mRenderTargetView;
+
+	ID3D11DepthStencilState* mDepthStencilState;
+	ID3D11RasterizerState* mRasterState;
 
 	ID3D11Buffer *mVertexBuffer, *mIndexBuffer;
 	ID3D11InputLayout* mLayout;
@@ -235,18 +296,15 @@ protected:
 	ID3D11VertexShader* mVertexShader;
 	ID3D11PixelShader* mPixelShader;
 
-	IDXGISwapChain* mSwapchain;
-	ID3D11Texture2D* mBackbufferTex;
-	ID3D11Texture2D* mDepthStencilBuffer;
-	ID3D11RenderTargetView* mRenderTargetView;
-
-	ID3D11DepthStencilState* mDepthStencilState;
-	ID3D11DepthStencilView* mDepthStencilView;
-	ID3D11RasterizerState* mRasterState;
-
 #elif defined(XGFX_OPENGL)
 	//Initialization
 	xgfx::OpenGLState mOGLState;
+
+	unsigned mWidth, mHeight;
+
+	GLuint mFrameBuffer;
+	GLuint mFrameBufferTex;
+	GLuint mRenderBufferDepth;
 
 	// Resources
 	GLuint mVertexShader;
