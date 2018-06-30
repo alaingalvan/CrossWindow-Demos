@@ -1,14 +1,16 @@
 # Project Info
+
 cmake_minimum_required(VERSION 3.6 FATAL_ERROR)
 cmake_policy(VERSION 3.6)
 project(HelloTriangle
         VERSION 1.0.0.0
         LANGUAGES C CXX
-        )
-enable_language(C)
-enable_language(CXX)
+)
+
+# =============================================================
 
 # CMake Settings
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_SUPPRESS_REGENERATION true)
 set(DCMAKE_GENERATOR_PLATFORM "x64")
@@ -26,21 +28,30 @@ if(NOT CMAKE_DEBUG_POSTFIX)
   set(CMAKE_DEBUG_POSTFIX d)
 endif()
 
+# =============================================================
+
 # Options
-set(XGFX_PROTOCOL VULKAN CACHE STRING "Which graphics API to use, defaults to AUTO, can be NOOP, VULKAN, OPENGL, DIRECTX12, or METAL.")
+
+set(XGFX_API VULKAN CACHE STRING "Which graphics API to use, defaults to AUTO, can be NOOP, VULKAN, OPENGL, DIRECTX12, or METAL.")
 set_property(
     CACHE
-    XGFX_PROTOCOL PROPERTY
+    XGFX_API PROPERTY
     STRINGS NOOP VULKAN OPENGL DIRECTX12 METAL
 )
+
 # =============================================================
 
 # Core Dependencies
+
+# CrossWindow
 add_subdirectory(../../external/crosswindow ${CMAKE_BINARY_DIR}/crosswindow)
+set_property(TARGET CrossWindow PROPERTY FOLDER "Dependencies")
+
+# CrossWindow-Graphics
 add_subdirectory(../../external/crosswindow-graphics ${CMAKE_BINARY_DIR}/crosswindow-graphics)
 
 # Cross Graphics Dependencies
-if(XGFX_PROTOCOL STREQUAL "VULKAN")
+if(XGFX_API STREQUAL "VULKAN")
     find_path(VULKAN_INCLUDE_DIR NAMES vulkan/vulkan.h HINTS
         "$ENV{VULKAN_SDK}/include"
         "$ENV{VULKAN_SDK}/Include"
@@ -61,24 +72,18 @@ if(XGFX_PROTOCOL STREQUAL "VULKAN")
             "$ENV{VULKAN_SDK}/Bin32"
             "$ENV{VK_SDK_PATH}/Bin32")
     endif()
-elseif(XGFX_PROTOCOL STREQUAL "OPENGL")
-    add_library(
-        Glad
-        ../../external/glad/src/glad.c
-    )
+elseif(XGFX_API STREQUAL "OPENGL")
+    add_subdirectory(../../external/glad ${CMAKE_BINARY_DIR}/glad)
     target_include_directories(
         Glad
-        PUBLIC ../../external/glad/include
         PUBLIC ../../external/opengl-registry/api
-        )
-    
-        set(XGFX_LIBRARY Glad)
-        set_property(TARGET Glad PROPERTY FOLDER "Dependencies")
-elseif(XGFX_PROTOCOL STREQUAL "METAL")
+    )
+    set(XGFX_LIBRARY Glad)
+    set_property(TARGET Glad PROPERTY FOLDER "Dependencies")
+elseif(XGFX_API STREQUAL "METAL")
     find_library(XGFX_LIBRARY Metal)
 endif()
 
-set_property(TARGET CrossWindow PROPERTY FOLDER "Dependencies")
 
 # =============================================================
 
@@ -87,8 +92,8 @@ set_property(TARGET CrossWindow PROPERTY FOLDER "Dependencies")
 file(GLOB_RECURSE FILE_SOURCES RELATIVE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src/XMain.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/${XGFX_PROTOCOL}Renderer.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/${XGFX_PROTOCOL}Renderer.mm
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/${XGFX_API}Renderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/${XGFX_API}Renderer.mm
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
 )
 
@@ -103,6 +108,7 @@ endforeach()
 # =============================================================
 
 # Finalize App
+
 xwin_add_executable(
     ${PROJECT_NAME}
     "${FILE_SOURCES}"
@@ -126,8 +132,10 @@ target_include_directories(
 
 target_compile_definitions(
   ${PROJECT_NAME} 
-  PRIVATE XGFX_${XGFX_PROTOCOL}=1
+  PUBLIC XGFX_${XGFX_API}=1
 )
+
+# =============================================================
 
 # Finish Settings
 
@@ -139,8 +147,3 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 endif()
-
-# =============================================================
-
-# Preprocessor Definitions
-target_compile_definitions(${PROJECT_NAME} PUBLIC XGFX_${XGFX_PROTOCOL}=1)

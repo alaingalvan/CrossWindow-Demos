@@ -4,11 +4,15 @@
 
 A simple hello triangle example that uses all modern graphics APIs.
 
-- Vulkan
-- DirectX 12
-- DirectX 11
-- Metal
-- OpenGL
+- 🌋 Vulkan
+
+- ❎ DirectX 12
+
+- ❎ DirectX 11
+
+- ⚪ OpenGL
+
+- 🤖 Metal
 
 ## Setup
 
@@ -124,7 +128,7 @@ android {
             ...
             // Use the following syntax when passing arguments to variables:
             // arguments "-DVAR_NAME=ARGUMENT".
-            arguments "-DXWIN_OS=ANDROID",
+            arguments "-DXWIN_PROTOCOL=ANDROID",
             // The following line passes 'rtti' and 'exceptions' to 'ANDROID_CPP_FEATURES'.
             "-DANDROID_CPP_FEATURES=rtti exceptions"
         }

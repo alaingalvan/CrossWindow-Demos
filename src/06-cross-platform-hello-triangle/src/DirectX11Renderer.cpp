@@ -92,13 +92,11 @@ void Renderer::initializeAPI(xwin::Window& window)
 	mDenominator = 1;
 	for (size_t i = 0; i < numModes; i++)
 	{
-		if (displayModeList[i].Width == mWidth)
+		if (displayModeList[i].Width == mWidth && displayModeList[i].Height == mHeight)
 		{
-			if (displayModeList[i].Height == mHeight)
-			{
 				mNumerator = displayModeList[i].RefreshRate.Numerator;
 				mDenominator = displayModeList[i].RefreshRate.Denominator;
-			}
+				break;
 		}
 	}
 

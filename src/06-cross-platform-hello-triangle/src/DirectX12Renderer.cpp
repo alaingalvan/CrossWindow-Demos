@@ -112,6 +112,9 @@ void Renderer::initializeAPI(xwin::Window& window)
 		{
 			break;
 		}
+
+		// We won't use this adapter, so release it
+		mAdapter->Release();
 	}
 
 	// Create Device
@@ -125,11 +128,8 @@ void Renderer::initializeAPI(xwin::Window& window)
 	mDevice->SetName(L"Hello Triangle Device");
 
 #if defined(_DEBUG)
-	mDevice->QueryInterface(&mDebugDevice);
-
-	D3D12_RLDO_FLAGS flags = D3D12_RLDO_SUMMARY | D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL;
-
-	mDebugDevice->ReportLiveDeviceObjects(flags);
+	// Get debug device
+	ThrowIfFailed(mDevice->QueryInterface(&mDebugDevice));
 #endif
 
 	// Create Command Queue
@@ -141,7 +141,6 @@ void Renderer::initializeAPI(xwin::Window& window)
 
 
 	// Create Command Allocator
-
 	ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mCommandAllocator)));
 
 	// Sync
@@ -481,7 +480,7 @@ void Renderer::initializeResources()
 		}
 		catch (std::exception e)
 		{
-			e;
+			std::cout << "Failed to create Graphics Pipeline!";
 		}
 
 		if (vertexShader)

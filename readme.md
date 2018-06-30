@@ -9,35 +9,59 @@ A variety of demos showcasing how to use CrossWindow to build cross platform app
 
 ```bash
 # 🐑 Clone the repo
-git clone git@github.com/alaingalvan/CrossWindow-Demos --recurse-submodules
+git clone https://github.com/alaingalvan/crosswindow-demos --recurse-submodules
 
 # 💿 go inside the folder
-cd CrossWindow-Demos
+cd crosswindow-demos
 
 # 👯 If you forget to `recurse-submodules` you can always run:
 git submodule update --init
 
 # 🔼 Go inside any demo, like for instance the Hello Triangle folder:
-cd src/hello-triangle/
+cd src/06-cross-platform-hello-triangle/
 
 ```
 
 ## Demos
 
-### Cross Platform Cross API Hello Triangle
-
-![Hello Triangle Cover Image](src/hello-triangle/assets/cover.jpg)
-
-An example showcasing the rendering of a simple triangle in every supported graphics API and operating system.
-
 <!--
-### UI Windows
+### Window Creation
 
-![UI Windows Cover Image](src/ui-windows/assets/cover.jpg)
+![Window Creation Cover Image](src/01-window-creation/assets/cover.jpg)
 
-How to create UIs that have resizable windows similar to image editors like Photoshop or game engines like Unity or Unreal Engine.
+A basic example showing how to create a window.
+
+### Alert Message
+
+![Alert Image](src/03-alert-message/assets/cover.jpg)
+
+Creating alert messages for warnings, errors, or confirmations in your application.
+
+## Open / Save Dialog
+
+![Open/Save Dialog Image](src/03-open-save-dialog/assets/cover.jpg)
+
+Creating open / save dialogs for grabbing files.
+
+### Multiple Windows
+
+![Multiple Windows Cover Image](src/04-multiple-windows/assets/cover.jpg)
+
+Managing and receiving events from multiple windows.
+
+### Borderless Window
+
+![Borderless Window Cover Image](src/05-borderless-window/assets/cover.jpg)
+
+Creating a borderless window, useful for embedded window UIs such as game engines, or for custom window designs.
+
 -->
 
+### Cross Platform Hello Triangle
+
+![Hello Triangle Cover Image](src/06-cross-platform-hello-triangle/assets/cover.jpg)
+
+An example showcasing the rendering of a simple triangle in every modern graphics API (Vulkan / DirectX 12 / DirectX 11 / OpenGL / Metal) and operating system.
 
 [cmake-img]: https://img.shields.io/badge/cmake-3.6-1f9948.svg?style=flat-square
 [cmake-url]: https://cmake.org/

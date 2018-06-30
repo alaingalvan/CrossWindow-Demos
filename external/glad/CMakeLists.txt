@@ -3,7 +3,7 @@ cmake_policy(VERSION 3.6)
 project(Glad
         VERSION 1.0.0.0
         LANGUAGES C CXX
-        )
+)
 
 set(
   GLAD_SOURCES
@@ -17,5 +17,5 @@ add_library(
 
 target_include_directories(
   Glad
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
 )

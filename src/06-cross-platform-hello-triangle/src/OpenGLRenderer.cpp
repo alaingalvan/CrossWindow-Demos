@@ -81,10 +81,10 @@ void Renderer::initializeResources()
 
 	std::vector<char> vertShaderCode = readFile("triangle.vert.glsl");
 	GLchar* vertStr = vertShaderCode.data();
-	GLint vertLen = vertShaderCode.size();
+	GLint vertLen = static_cast<GLint>(vertShaderCode.size());
 	std::vector<char> fragShaderCode = readFile("triangle.frag.glsl");
 	GLchar* fragStr = fragShaderCode.data();
-	GLint fragLen = fragShaderCode.size();
+	GLint fragLen = static_cast<GLint>(fragShaderCode.size());
 
 	mVertexShader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(mVertexShader, 1, &vertStr, &vertLen);
