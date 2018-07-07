@@ -18,7 +18,7 @@ cd crosswindow-demos
 git submodule update --init
 
 # 🔼 Go inside any demo, like for instance the Hello Triangle folder:
-cd src/06-cross-platform-hello-triangle/
+cd src/04-cross-platform-hello-triangle/
 
 ```
 
@@ -43,23 +43,11 @@ Creating alert messages for warnings, errors, or confirmations in your applicati
 
 Creating open / save dialogs for grabbing files.
 
-### Multiple Windows
-
-![Multiple Windows Cover Image](src/04-multiple-windows/assets/cover.jpg)
-
-Managing and receiving events from multiple windows.
-
-### Borderless Window
-
-![Borderless Window Cover Image](src/05-borderless-window/assets/cover.jpg)
-
-Creating a borderless window, useful for embedded window UIs such as game engines, or for custom window designs.
-
 -->
 
 ### Cross Platform Hello Triangle
 
-![Hello Triangle Cover Image](src/06-cross-platform-hello-triangle/assets/cover.jpg)
+![Hello Triangle Cover Image](src/04-cross-platform-hello-triangle/assets/cover.jpg)
 
 An example showcasing the rendering of a simple triangle in every modern graphics API (Vulkan / DirectX 12 / DirectX 11 / OpenGL / Metal) and operating system.
 
