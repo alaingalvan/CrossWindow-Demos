@@ -144,7 +144,7 @@ target_compile_definitions(
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
-# Change working directory to bin
+# Change working directory to top dir to access `assets/shaders/` folder
 if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+    set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/../..)
 endif()

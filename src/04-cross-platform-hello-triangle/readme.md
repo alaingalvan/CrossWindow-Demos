@@ -51,20 +51,20 @@ Sorry for all the going up/down folders, this is to make sure files go where the
 
 ```bash
 # 🌋 Compile shaders to SPIR-V binary
-../../../../external/glslang/build/StandAlone/Release/glslangValidator -V triangle.vert -o ../../build/bin/triangle.vert.spv
-../../../../external/glslang/build/StandAlone/Release/glslangValidator -V triangle.frag -o ../../build/bin/triangle.frag.spv
+../../../../external/glslang/build/StandAlone/Release/glslangValidator -V triangle.vert -o triangle.vert.spv
+../../../../external/glslang/build/StandAlone/Release/glslangValidator -V triangle.frag -o triangle.frag.spv
 
 # ❎ HLSL
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.vert.spv --hlsl --shader-model 50 --set-hlsl-vertex-input-semantic 0 POSITION --set-hlsl-vertex-input-semantic 1 COLOR --output ../../build/bin/triangle.vert.hlsl
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.frag.spv --hlsl --shader-model 50 --set-hlsl-vertex-input-semantic 0 COLOR --output ../../build/bin/triangle.frag.hlsl
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross triangle.vert.spv --hlsl --shader-model 50 --set-hlsl-vertex-input-semantic 0 POSITION --set-hlsl-vertex-input-semantic 1 COLOR --output triangle.vert.hlsl
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross triangle.frag.spv --hlsl --shader-model 50 --set-hlsl-vertex-input-semantic 0 COLOR --output triangle.frag.hlsl
 
 # ⚪ OpenGL ES 3.1
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.vert.spv --version 310 --es --output ../../build/bin/triangle.vert.glsl
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.frag.spv --version 310 --es --output ../../build/bin/triangle.frag.glsl
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross .triangle.vert.spv --version 310 --es --output .triangle.vert.glsl
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross .triangle.frag.spv --version 310 --es --output .triangle.frag.glsl
 
 # 🤖 Metal
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.vert.spv --msl --output ../../build/bin/triangle.vert.msl
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross ../../build/bin/triangle.frag.spv --msl --output ../../build/bin/triangle.frag.msl
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross .triangle.vert.spv --msl --output .triangle.vert.msl
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross .triangle.frag.spv --msl --output .triangle.frag.msl
 ```
 
 > Metal shader bindings don't always correspond with Vulkan shader bindings, so you'll want to change the uniform buffer location from 0 to 1 to let 0 bind to the vertex buffer.
