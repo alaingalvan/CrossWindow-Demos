@@ -146,5 +146,5 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 )
 # Change working directory to top dir to access `assets/shaders/` folder
 if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/../..)
+    set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/..)
 endif()
