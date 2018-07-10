@@ -37,10 +37,6 @@ cmake --build . --config Release
 
 # Go to the shaders folder
 cd ../../demos/hello-triangle/assets/shaders
-
-# Make build folder
-mkdir ../../build
-mkdir ../../build/bin
 ```
 
 ### Compile Shaders
