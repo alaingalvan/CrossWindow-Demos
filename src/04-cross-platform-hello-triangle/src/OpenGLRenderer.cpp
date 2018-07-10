@@ -79,10 +79,10 @@ void Renderer::initializeResources()
 		return true;
 	};
 
-	std::vector<char> vertShaderCode = readFile("triangle.vert.glsl");
+	std::vector<char> vertShaderCode = readFile("assets/shaders/triangle.vert.glsl");
 	GLchar* vertStr = vertShaderCode.data();
 	GLint vertLen = static_cast<GLint>(vertShaderCode.size());
-	std::vector<char> fragShaderCode = readFile("triangle.frag.glsl");
+	std::vector<char> fragShaderCode = readFile("assets/shaders/triangle.frag.glsl");
 	GLchar* fragStr = fragShaderCode.data();
 	GLint fragLen = static_cast<GLint>(fragShaderCode.size());
 

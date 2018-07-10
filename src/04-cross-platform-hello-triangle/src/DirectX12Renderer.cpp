@@ -336,8 +336,8 @@ void Renderer::initializeResources()
 		path += "\\";
 		std::wstring wpath = std::wstring(path.begin(), path.end());
 
-		std::wstring vertPath = wpath + L"triangle.vert.hlsl";
-		std::wstring fragPath = wpath + L"triangle.frag.hlsl";
+		std::wstring vertPath = wpath + L"assets/shaders/triangle.vert.hlsl";
+		std::wstring fragPath = wpath + L"assets/shaders/triangle.frag.hlsl";
 
 		try
 		{

@@ -45,7 +45,7 @@ mkdir ../../build/bin
 
 ### Compile Shaders
 
-Now we can compile our shaders for the example, we'll be placing them where the final executable will be so it can read their files.
+Shaders are compiled already and bundled in the app, but if you want you can recompile them.
 
 Sorry for all the going up/down folders, this is to make sure files go where they're expected:
 

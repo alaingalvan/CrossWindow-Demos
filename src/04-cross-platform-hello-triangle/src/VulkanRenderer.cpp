@@ -831,7 +831,7 @@ void Renderer::initializeResources()
 	mVertices.inputBinding.inputRate = vk::VertexInputRate::eVertex;
 
 	// Inpute attribute binding describe shader attribute locations and memory layouts
-	// These match the following shader layout (see triangle.vert):
+	// These match the following shader layout (see assets/shaders/triangle.vert):
 	//	layout (location = 0) in vec3 inPos;
 	//	layout (location = 1) in vec3 inColor;
 	mVertices.inputAttributes.resize(2);
@@ -929,8 +929,8 @@ void Renderer::initializeResources()
 
 	// Create Graphics Pipeline
 
-	std::vector<char> vertShaderCode = readFile("triangle.vert.spv");
-	std::vector<char> fragShaderCode = readFile("triangle.frag.spv");
+	std::vector<char> vertShaderCode = readFile("assets/shaders/triangle.vert.spv");
+	std::vector<char> fragShaderCode = readFile("assets/shaders/triangle.frag.spv");
 
 	mVertModule = mDevice.createShaderModule(
 		vk::ShaderModuleCreateInfo(

@@ -195,8 +195,8 @@ void Renderer::initializeResources()
 	path += "\\";
 	std::wstring wpath = std::wstring(path.begin(), path.end());
 
-	std::wstring vertPath = wpath + L"triangle.vert.hlsl";
-	std::wstring fragPath = wpath + L"triangle.frag.hlsl";
+	std::wstring vertPath = wpath + L"assets/shaders/triangle.vert.hlsl";
+	std::wstring fragPath = wpath + L"assets/shaders/triangle.frag.hlsl";
 
 	try
 	{
@@ -601,7 +601,7 @@ void Renderer::render()
 	// Set the vertex input layout.
 	mDeviceContext->IASetInputLayout(mLayout);
 
-	// Set the vertex and pixel shaders that will be used to render this triangle.
+	// Set the vertex and pixel shaders that will be used to render this assets/shaders/triangle.
 	mDeviceContext->VSSetShader(mVertexShader, NULL, 0);
 	mDeviceContext->PSSetShader(mPixelShader, NULL, 0);
 
@@ -616,7 +616,7 @@ void Renderer::render()
 	// Set the type of primitive that should be rendered from this vertex buffer, in this case triangles.
 	mDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	// Render the triangle.
+	// Render the assets/shaders/triangle.
 	mDeviceContext->DrawIndexed(3, 0, 0);
 
 	if (mVsync)
