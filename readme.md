@@ -7,6 +7,8 @@ A variety of demos showcasing how to use CrossWindow to build cross platform app
 
 ## Getting Started
 
+First install [Git](https://git-scm.com/downloads), then open any terminal such as [Hyper](https://hyper.is/) in any folder and type:
+
 ```bash
 # 🐑 Clone the repo
 git clone https://github.com/alaingalvan/crosswindow-demos --recurse-submodules

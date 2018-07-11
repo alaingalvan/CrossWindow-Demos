@@ -8,7 +8,7 @@ A simple hello triangle example that uses all modern graphics APIs.
 
 - ❎ DirectX 12
 
-- ❎ DirectX 11
+- ✖️ DirectX 11
 
 - ⚪ OpenGL
 
@@ -16,82 +16,36 @@ A simple hello triangle example that uses all modern graphics APIs.
 
 ## Setup
 
-### Build Shader Compiler/Transpiler
+## Getting Started
 
-First we're going to need to build our tools to compile our shader, GLSLangValidator (comes with the Vulkan SDK, but is also bundled as a submodule here) and [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross).
+From there we'll need to set up our build files. Be sure to have the following installed:
+
+- [CMake](https://cmake.org/)
+
+- An IDE such as [Visual Studio](https://visualstudio.microsoft.com/downloads/), [XCode](https://developer.apple.com/xcode/), or a compiler such as [GCC](https://gcc.gnu.org/).
+
+Then type the following in your terminal from the repo folder:
 
 ```bash
-# 🔨 Let's build SPIRV-Cross and GLSLangValidator to compile our shaders
-# These were included in the `/external/` folder of this repo:
-cd ../../external/spirv-cross
-mkdir spirv-cross
-cd spirv-cross
-cmake ..
-cmake --build . --config Release
-
-cd ../glslangvalidator
+# 👷 Make a build folder
 mkdir build
 cd build
-cmake ..
-cmake --build . --config Release
 
-# Go to the shaders folder
-cd ../../demos/hello-triangle/assets/shaders
-```
-
-### Compile Shaders
-
-Shaders are compiled already and bundled in the app, but if you want you can recompile them.
-
-Sorry for all the going up/down folders, this is to make sure files go where they're expected:
-
-```bash
-# 🌋 Compile shaders to SPIR-V binary
-../../../../external/glslang/build/StandAlone/Release/glslangValidator -V triangle.vert -o triangle.vert.spv
-../../../../external/glslang/build/StandAlone/Release/glslangValidator -V triangle.frag -o triangle.frag.spv
-
-# ❎ HLSL
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross triangle.vert.spv --hlsl --shader-model 50 --set-hlsl-vertex-input-semantic 0 POSITION --set-hlsl-vertex-input-semantic 1 COLOR --output triangle.vert.hlsl
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross triangle.frag.spv --hlsl --shader-model 50 --set-hlsl-vertex-input-semantic 0 COLOR --output triangle.frag.hlsl
-
-# ⚪ OpenGL ES 3.1
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross .triangle.vert.spv --version 310 --es --output .triangle.vert.glsl
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross .triangle.frag.spv --version 310 --es --output .triangle.frag.glsl
-
-# 🤖 Metal
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross .triangle.vert.spv --msl --output .triangle.vert.msl
-../../../../external/spirv-cross/spirv-cross/Release/spirv-cross .triangle.frag.spv --msl --output .triangle.frag.msl
-```
-
-> Metal shader bindings don't always correspond with Vulkan shader bindings, so you'll want to change the uniform buffer location from 0 to 1 to let 0 bind to the vertex buffer.
-> ```cpp
-> // change buffer(0) to buffer(1)
-> vertex main0_out main0(main0_in in [[stage_in]], constant UBO& ubo [[buffer(0)]])
-> ```
-
-### Compile Demo
-
-Finally we need to build our actual example:
-
-```bash
 # 🖼️ To build your Visual Studio solution on Windows x64
-mkdir build
-cd build
 cmake .. -A x64
 
-# 🍎 To build your XCode project On Mac OS for Mac OS / iOS
-mkdir build
-cd build
+# 🍎 To build your XCode project on Mac OS
 cmake .. -G Xcode
 
 # 🐧 To build your .make file on Linux
-mkdir build
-cd build
 cmake ..
 
 # 🔨 Build on any platform:
 cmake --build .
 ```
+
+### WebAssembly & Android
+
 For WebAssembly you'll need to have [Emscripten](http://kripken.github.io/emscripten-site/docs/getting_started/downloads.html) installed. Assuming you have the SDK installed, do the following to build a WebAssembly project:
 
 ```bash
@@ -137,6 +91,61 @@ android {
   }
 }
 ```
+
+### **Optional** - Build Shader Compiler/Transpiler
+
+If you want to edit the shaders used in this example, you'll need to compile / transpile those shaders. If not you can skip this.
+
+First we're going to need to build our tools to compile our shader, GLSLangValidator (comes with the Vulkan SDK, but is also bundled as a submodule here) and [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross).
+
+```bash
+# 🔨 Let's build SPIRV-Cross and GLSLangValidator to compile our shaders
+# These were included in the `/external/` folder of this repo:
+cd ../../external/spirv-cross
+mkdir spirv-cross
+cd spirv-cross
+cmake ..
+cmake --build . --config Release
+
+cd ../glslangvalidator
+mkdir build
+cd build
+cmake ..
+cmake --build . --config Release
+
+# Go to the shaders folder
+cd ../../demos/hello-triangle/assets/shaders
+```
+
+#### Compile Shaders
+
+Shaders are compiled already and bundled in the app, but if you want you can recompile them.
+
+Sorry for all the going up/down folders, this is to make sure files go where they're expected:
+
+```bash
+# 🌋 Compile shaders to SPIR-V binary
+../../../../external/glslang/build/StandAlone/Release/glslangValidator -V triangle.vert -o triangle.vert.spv
+../../../../external/glslang/build/StandAlone/Release/glslangValidator -V triangle.frag -o triangle.frag.spv
+
+# ❎ HLSL
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross triangle.vert.spv --hlsl --shader-model 50 --set-hlsl-vertex-input-semantic 0 POSITION --set-hlsl-vertex-input-semantic 1 COLOR --output triangle.vert.hlsl
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross triangle.frag.spv --hlsl --shader-model 50 --set-hlsl-vertex-input-semantic 0 COLOR --output triangle.frag.hlsl
+
+# ⚪ OpenGL ES 3.1
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross .triangle.vert.spv --version 310 --es --output .triangle.vert.glsl
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross .triangle.frag.spv --version 310 --es --output .triangle.frag.glsl
+
+# 🤖 Metal
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross .triangle.vert.spv --msl --output .triangle.vert.msl
+../../../../external/spirv-cross/spirv-cross/Release/spirv-cross .triangle.frag.spv --msl --output .triangle.frag.msl
+```
+
+> Metal shader bindings don't always correspond with Vulkan shader bindings, so you'll want to change the uniform buffer location from 0 to 1 to let 0 bind to the vertex buffer.
+> ```cpp
+> // change buffer(0) to buffer(1)
+> vertex main0_out main0(main0_in in [[stage_in]], constant UBO& ubo [[buffer(0)]])
+> ```
 
 ## Credits
 
