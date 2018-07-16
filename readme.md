@@ -26,13 +26,13 @@ cd src/04-cross-platform-hello-triangle/
 
 ## Demos
 
-<!--
 ### Window Creation
 
-![Window Creation Cover Image](src/01-window-creation/assets/cover.jpg)
+<!--![Window Creation Cover Image](src/01-window-creation/assets/cover.jpg)-->
 
 A basic example showing how to create a window.
 
+<!--
 ### Alert Message
 
 ![Alert Image](src/03-alert-message/assets/cover.jpg)
