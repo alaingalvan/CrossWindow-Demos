@@ -18,13 +18,13 @@ A simple hello triangle example that uses all modern graphics APIs.
 
 ## Getting Started
 
-From there we'll need to set up our build files. Be sure to have the following installed:
+Be sure to have the following installed:
 
 - [CMake](https://cmake.org/)
 
 - An IDE such as [Visual Studio](https://visualstudio.microsoft.com/downloads/), [XCode](https://developer.apple.com/xcode/), or a compiler such as [GCC](https://gcc.gnu.org/).
 
-Then type the following in your terminal from the repo folder:
+Then type the following in your terminal from this folder:
 
 ```bash
 # 👷 Make a build folder
