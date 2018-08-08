@@ -32,18 +32,17 @@ cd src/04-cross-platform-hello-triangle/
 
 A basic example showing how to create a window.
 
-<!--
-### Alert Message
+### Events
 
-![Alert Image](src/03-alert-message/assets/cover.jpg)
+![Alert Image](src/03-events/assets/cover.jpg)
 
-Creating alert messages for warnings, errors, or confirmations in your application.
+Testing events.
 
-## Open / Save Dialog
+## Dialog and Alerts
 
 ![Open/Save Dialog Image](src/03-open-save-dialog/assets/cover.jpg)
 
-Creating open / save dialogs for grabbing files.
+Creating open / save dialogs for grabbing files. Creating alert messages for warnings, errors, or confirmations in your application.
 
 -->
 
