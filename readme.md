@@ -34,17 +34,15 @@ A basic example showing how to create a window.
 
 ### Events
 
-![Alert Image](src/03-events/assets/cover.jpg)
+<!--![Alert Image](src/02-events/assets/cover.jpg)-->
 
-Testing events.
+An example using every possible event in CrossWindow.
 
-## Dialog and Alerts
+### Open / Save / Alert Dialogs
 
-![Open/Save Dialog Image](src/03-open-save-dialog/assets/cover.jpg)
+<!--![Open/Save Dialog Image](src/03-open-save-alert/assets/cover.gif)-->
 
 Creating open / save dialogs for grabbing files. Creating alert messages for warnings, errors, or confirmations in your application.
-
--->
 
 ### Cross Platform Hello Triangle
 
