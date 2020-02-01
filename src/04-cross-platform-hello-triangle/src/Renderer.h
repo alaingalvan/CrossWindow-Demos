@@ -320,25 +320,34 @@ protected:
 	GLint mColorAttrib;
 
 #elif defined(XGFX_METAL)
-	// The device (aka GPU) we're using to render
+	// MTLDevice - The device (aka GPU) we're using to render
 	void* mDevice;
-
+	//CAMetalLayer
 	void* mLayer;
-	// The command Queue from which we'll obtain command buffers
+	//MTLCommandQueue - The command Queue from which we'll obtain command buffers
 	void* mCommandQueue;
-
 	// The current size of our view so we can use this in our render pipeline
 	unsigned mViewportSize[2];
 
 	//Resources
+	
+	//MTLLibrary
 	void* vertLibrary;
+	//MTLLibrary
 	void* fragLibrary;
+	//MTLFunction
 	void* vertexFunction;
+	//MTLFunction
 	void* fragmentFunction;
+	//MTLBuffer
 	void* mVertexBuffer;
+	//MTLBuffer
 	void* mIndexBuffer;
+	//MTLBuffer
 	void* mUniformBuffer;
+	//MTLRenderPipelineState
 	void* mPipelineState;
+	//MTLCommandBuffer
 	void* mCommandBuffer;
 
 #endif
