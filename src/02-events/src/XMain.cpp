@@ -42,9 +42,9 @@ void xmain(int argc, const char** argv)
             }
 
             // Mouse Movement
-            if (event.type == xwin::EventType::MouseMoved)
+            if (event.type == xwin::EventType::MouseMove)
             {
-                const xwin::MouseInputData data = event.data.mouseInput;
+                const xwin::MouseMoveData data = event.data.mouseMove;
             }
 
             // Resize

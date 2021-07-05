@@ -32,9 +32,9 @@ void xmain(int argc, const char** argv)
         {
             const xwin::Event& event = eventQueue.front();
 
-            if (event.type == xwin::EventType::Mouse)
+            if (event.type == xwin::EventType::MouseMove)
             {
-                const xwin::MouseData mouse = event.data.mouse;
+                const xwin::MouseMoveData mouse = event.data.mouseMove;
             }
             if (event.type == xwin::EventType::Close)
             {
