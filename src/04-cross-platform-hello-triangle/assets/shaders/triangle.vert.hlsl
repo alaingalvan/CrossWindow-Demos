@@ -18,7 +18,7 @@ struct SPIRV_Cross_Input
 
 struct SPIRV_Cross_Output
 {
-    float3 outColor : POSITION;
+    float3 outColor : COLOR;
     float4 gl_Position : SV_Position;
 };
 
