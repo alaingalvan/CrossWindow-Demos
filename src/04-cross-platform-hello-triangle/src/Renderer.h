@@ -123,7 +123,7 @@ protected:
 
 	uint32_t mIndexBufferData[3] = { 0, 1, 2 };
 
-	std::chrono::time_point<std::chrono::steady_clock> tStart, tEnd;
+    std::chrono::time_point<std::chrono::high_resolution_clock> tStart, tEnd;
 	float mElapsedTime = 0.0f;
 
 	// Uniform data

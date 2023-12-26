@@ -1,5 +1,6 @@
 #include "CrossWindow/CrossWindow.h"
-#include "Renderer.h"
+#include "CrossWindow/Common/Dialogs.h"
+//#include "Renderer.h"
 
 void xmain(int argc, const char** argv)
 {
@@ -35,20 +36,29 @@ void xmain(int argc, const char** argv)
                 const xwin::MouseInputData data = event.data.mouseInput;
                 if (data.state == xwin::ButtonState::Released)
                 {
-                  if (data.button == xwin::MouseInput::Left)
-                  {
-                    // 💾 Open File Save Dialog
-                  }
+                    if (data.button == xwin::MouseInput::Left)
+                    {
+                        // 💾 Open File Save Dialog
+                        xwin::OpenSaveDialogDesc desc {};
+                        std::string path;
+                        showOpenDialog(desc, path);
+                    }
 
-                  if (data.button == xwin::MouseInput::Right)
-                  {
-                    // 📂 Open File Open Dialog
-                  }
+                    if (data.button == xwin::MouseInput::Right)
+                    {
+                        // 📂 Open File Open Dialog
+                        xwin::OpenSaveDialogDesc desc {};
+                        std::string path;
+                        showSaveDialog(desc, path);
+                    }
 
-                  if (data.button == xwin::MouseInput::Middle)
-                  {
-                    // ❗ Open Alert
-                  }
+                    if (data.button == xwin::MouseInput::Middle)
+                    {
+                        // ❗ Open Alert
+                        xwin::MessageDesc desc {};
+                        desc.type = xwin::MessageType::Warning;
+                        showMessageBox(desc);
+                    }
                 }
             }
 

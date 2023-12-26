@@ -1,5 +1,5 @@
 #include "CrossWindow/CrossWindow.h"
-#include "Renderer.h"
+//#include "Renderer.h"
 
 void xmain(int argc, const char** argv)
 {
@@ -57,6 +57,7 @@ void xmain(int argc, const char** argv)
             if (event.type == xwin::EventType::Close)
             {
                 window.close();
+                isRunning = false;
             }
 
             eventQueue.pop();
